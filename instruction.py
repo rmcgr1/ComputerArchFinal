@@ -37,54 +37,115 @@ F0 - F31 FP registers (32/64 bits)
 
 '''
 
-import pdb
+#import pdb
 
 
 class Instruction:
 
-    Data_Instructions = ['LW', 'SW', 'L.D', 'S.D']
-    Arithmetic_Instructions = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI', 'ADD.D', 'MUL.D', 'DIV.D', 'SUB.D']
-    Control_Instructions = ['J', 'BEQ', 'BNE']
-
 
     def parse(self, filename):
+        
+        #TODO There is a inconsistancy between having DADDI and DADD.i
+
+        Data_Instructions_List = ['LW', 'SW', 'L.D', 'S.D']
+        Arithmetic_Instructions_List = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI', 'ADD.D', 'MUL.D', 'DIV.D', 'SUB.D']
+        Control_Instructions_List = ['J', 'BEQ', 'BNE']
+
+        inst_list = []
+
         f = open(filename)
         lines = f.readlines()
         for l in lines:
-            l = l.strip().strip(',').split(' ')
+            l = l.strip().split()
+
+            if l[0].upper() in Data_Instructions_List:
+                opcode = l[0]
+                rs = l[1].strip(',')
+                rt = l[2].split('(')[-1].strip(')')
+                immediate = l[2].split('(')[0]
+                inst_list.append(Data_Instruction(opcode, rs, rt, immediate))
+                continue
+
+            if l[0].upper() in Arithmetic_Instructions_List:
+                opcode = l[0]
+                rd = l[1].strip(',')
+                rs = l[2].strip(',')
+                rt = l[3].strip(',')
+                inst_list.append(Arithmetic_Instruction(opcode, rd, rs, rt))
+
+            if l[0].upper() in Control_Instructions_List:
+                opcode = l[0]
+                rd = l[1].strip(',')
+                rs = l[2].strip(',')
+                rt = l[3].strip(',')
+                inst_list.append(Control_Instruction(opcode, rd, rs, rt))
+
+
+
+        #print inst_list[3].opcode
+        #print inst_list[3].rd
+        #print inst_list[3].rs
+        #print inst_list[3].rt
+
             
-            #From opcode determine type
-            #if l[0] in Data_Instructions:
-                #inst = I_Type(l[0], l[1]
+        return inst_list
 
 
-            #fill out type
             
 
-    
+
+class Data_Instruction:
+    def __init__(self, opcode, rs, rt, immediate):
+        self.opcode = opcode
+        self.rs = rs
+        self.rt = rt
+        self.immediate = immediate
+        self.type = 'data'
+
+
+
+class Arithmetic_Instruction:
+    def __init__(self, opcode, rd, rs, rt):
+        self.opcode = opcode
+        self.rd = rd
+        self.rs = rs
+        self.rt = rt
+        self.type = 'math'
+
+
+class Control_Instruction:
+    def __init__(self, opcode, rd, rs, rt):
+        self.opcode = opcode
+        self.rd = rd
+        self.rs = rs
+        self.rt = rt
+        self.type = 'control'
+
+
+
 class I_Type:
     def __init__(self, opcode, rs, rt, immediate):
-        self.opcode = (opcode,6)
-        self.rs = (rs, 5)
-        self.rt = (rt, 5)
-        self.immediate = (immediate, 16)
+        self.opcode = opcode
+        self.rs = rs
+        self.rt = rt
+        self.immediate = immediate
         self.type = 'i'
 
 
 class R_Type:
     def __init__(self, opcode, rs, rt, rd, shamt, funct):
-        self.opcode = (opcode, 6)
-        self.rs = (rs, 5)
-        self.rt = (rt, 5)
-        self.rd = (rd, 5)
-        self.shamt = (shamt, 5)
-        self.funct = (funct, 6)
+        self.opcode = opcode
+        self.rs = rs
+        self.rt = rt
+        self.rd = rd
+        self.shamt = shamt, 5
+        self.funct = funct, 6
         self.type = 'r'
 
     
 class J_Type:
     def __init__(self, opcode, offset):
-        self.opcode = (opcode, 6)
-        self.offset = (offset, 26)
+        self.opcode = opcode
+        self.offset = offset
         self.type = 'j'
 
