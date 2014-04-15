@@ -10,6 +10,7 @@ The controller to kick of all stages of the MIPS processor
 import pdb
 
 from setup import Setup
+from ex import Ex
 
 ###
 # Helper Functions
@@ -43,9 +44,9 @@ def to_string(ins):
     return rv.strip()
 
 def yesno(string):
-    if string.upper() = "NO":
+    if string.upper() == "NO":
         return False
-    else if string.upper() = "YES":
+    elif string.upper() == "YES":
         return True
     else:
         pdb.set_trace()
@@ -57,7 +58,7 @@ def status():
     print ""
     print "Instruction\t\tIF\tID\tEX\tWB"
     for s in state_list:
-        print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "{0}\t{1}\t{2}\t{3}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'])
+        print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "\t{0}\t{1}\t{2}\t{3}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'])
 
     
 
@@ -94,6 +95,10 @@ def EX_stage():
         # can we have multiple instructions enter EX?
         inst = ID.pop(0)
         EX.append(inst)
+      
+        completion_cycle = execute.start(inst, clock)
+        
+        
         
         # WORK HERE (check to make sure config is parsed then...) Add to EX_completion, modify for each FU
         if not EX_completion.has_key(clock+1):
@@ -102,6 +107,8 @@ def EX_stage():
         else:
             EX_completion[clock].append(inst)
             EX.pop()
+
+        
         
         # check EX_completion here too to do the status update
         # Need to account for multiple instructions finishing in this cycle
@@ -142,15 +149,14 @@ FP_MULT_BUSY = False
 FP_DIV_BUSY = False
 INT_BUSY = False
 
+execute = Ex()
+
 FP_DIV_PIPELINED = yesno(config['FP divider'][1])
-FP_DIV_DELAY = config['FP divider'][0])
+FP_DIV_DELAY = config['FP divider'][0]
 FP_ADD_PIPELINED = yesno(config['FP adder'][1])
 FP_ADD_DELAY = config['FP adder'][0]
 FP_MULT_PIPELINED = yesno(config['FP Multiplier'][1])
-FP_MULT_DELAY = config['FP Multipler'][0]
-
-
-
+FP_MULT_DELAY = config['FP Multiplier'][0]
 
 EX_completion = {}
 state = {}
