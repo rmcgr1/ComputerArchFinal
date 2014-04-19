@@ -46,8 +46,11 @@ def to_string(ins):
 
 def status():
 
+    print ""
     print "Clock: " + str(clock)
     print "IF: {0} ID: {1} EX: {2} WB: {3}".format(IF, ID, EX, WB)
+    print ""
+    print execute.status()
     print ""
     print "Instruction\t\tIF\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct"
     for s in state_list:
@@ -65,7 +68,7 @@ def ready_instructions():
 
 def IF_stage():
     global EIP
-    if proceed:
+    if proceed and IF_Proceed:
         inst = instruction[EIP]
         IF.append(inst)
         EIP = EIP + 4
@@ -76,51 +79,72 @@ def IF_stage():
 def ID_stage():
     if proceed and len(IF) != 0:
         
-        inst = IF.pop(0)
-        ID.append(inst)
-        ## Maybe check functional unit availability here and set flags?
+        # TODO This may be trouble trying to remove from list
+        # TODO Is this proper way to prevent more fetches?
 
-        update_state(to_string(inst), "ID", clock)
+        ID.append(IF.pop(0))
+    
+        for inst in ID:
+            if execute.unitFree(inst, clock):
+                ID_Ready.append(inst)
+                ID.remove(inst)
+                update_state(to_string(inst), "ID", clock)
+            else:
+                # TODO record hazard here? Waiting on a FU isn't a hazard right?
+                IF_Proceed = False
+        
+        if len(ID) == 0:
+            IF_Proceed = True
+
 
 def EX_stage():
-    if proceed and len(ID) != 0:
-        
-        # can we have multiple instructions enter EX?
-        inst = ID.pop(0)
-        EX.append(inst)
-      
-        completion_cycle = execute.start(inst, clock)
-        
-        
-        
-        # WORK HERE (check to make sure config is parsed then...) Add to EX_completion, modify for each FU
-        if not EX_completion.has_key(completion_cycle):
-            EX_completion[completion_cycle] = list()
-            EX_completion[completion_cycle].append(inst)
-            EX.pop()
-        else:
-            EX_completion[completion_cycle].append(inst)
-            EX.pop()
+    global ID_Ready
 
+    if proceed and len(ID_Ready) != 0:
         
-        
-        # check EX_completion here too to do the status update
-        # Need to account for multiple instructions finishing in this cycle
-        if EX_completion.has_key(clock):
-            inst_list = EX_completion[clock]
-            for inst in inst_list:
-                if execute.needsMem(inst):
-                    execute.Mem(inst)
-                update_state(to_string(inst), "EX", clock)
-                WB.append(inst)
 
+        # can we have multiple instructions enter EX, sure!
+        for inst in ID_Ready:
+
+            EX.append(inst)
+
+            completion_cycle = execute.start(inst, clock)
+
+            if not EX_completion.has_key(completion_cycle):
+                EX_completion[completion_cycle] = list()
+                EX_completion[completion_cycle].append(inst)
+                EX.pop()
+            else:
+                EX_completion[completion_cycle].append(inst)
+                EX.pop()
+
+            ID_Ready = []
+                
+            # check EX_completion here too to do the status update
+            # Need to account for multiple instructions finishing in this cycle
+            if EX_completion.has_key(clock):
+                inst_list = EX_completion[clock]
+                for inst in inst_list:
+                    # TODO implement MEM here
+                    if execute.needsMem(inst):
+                        execute.Mem(inst)
+                    update_state(to_string(inst), "EX", clock)
+                    EX_Ready.append(inst)
+                    
+                # Contention for single WB port
+                # TODO Priority given to not pipelined FU that takes most cycles, if tie, earielst issued
+                # TODO Record Structural Hazard
+                if len(EX_Ready) > 1:
+                    # TODO Change this
+                    WB.append(EX_Ready.pop())
+                else:
+                    WB.append(EX_Ready.pop())
             
 
 
 def WB_stage():
     if proceed and len(WB) != 0:
         
-        # Need to account for multiple instructions finishing in this cycle
         inst = WB.pop()
         update_state(to_string(inst), "WB", clock)
 
@@ -135,11 +159,15 @@ instruction.keys().sort()
 
 clock = 0
 EIP = 0
+
 proceed = True
+IF_Proceed = True
 
 IF = []
 ID = []
+ID_Ready = []
 EX = []
+EX_Ready = []
 WB = []
 
 

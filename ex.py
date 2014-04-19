@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import pdb
+import sys
 
 class Ex:
 
@@ -23,16 +24,16 @@ class Ex:
 
     def __init__(self, config):    
         self.FP_DIV_PIPELINED = self.yesno(config['FP divider'][1])
-        self.FP_DIV_DELAY = config['FP divider'][0]
+        self.FP_DIV_DELAY = int(config['FP divider'][0])
         self.FP_ADD_PIPELINED = self.yesno(config['FP adder'][1])
-        self.FP_ADD_DELAY = config['FP adder'][0]
+        self.FP_ADD_DELAY = int(config['FP adder'][0])
         self.FP_MULT_PIPELINED = self.yesno(config['FP Multiplier'][1])
-        self.FP_MULT_DELAY = config['FP Multiplier'][0]
+        self.FP_MULT_DELAY = int(config['FP Multiplier'][0])
 
     
 
     def start(self, inst, clock):
-        ex_cycles = self.delay(inst, clock)
+        ex_cycles = self.setDelay(inst, clock)
         return ex_cycles + clock
 
 
@@ -45,7 +46,7 @@ class Ex:
 # Helper Functions
 ####
 
-    def delay(self, inst, clock):
+    def setDelay(self, inst, clock):
 
         # TODO: Pipelining for MUL and DIV and FP ADD
 
@@ -61,15 +62,51 @@ class Ex:
         if op in Mem_Ops:
             return 0
         if op == "ADD.D" or op == "SUB.D":
-            return int(self.FP_ADD_DELAY)
+            if not self.FP_ADD_PIPELINED:
+                self.FP_ADD_BUSY = self.FP_ADD_BUSY + self.FP_ADD_DELAY - 1
+            return self.FP_ADD_DELAY - 1
         if op == "MUL.D":
-            return int(self.FP_MULT_DELAY)
+            return self.FP_MULT_DELAY - 1
         if op == "DIV.D":
-            if self.FP_DIV_PIPELINED == "YES":
-                self.FP_DIV_BUSY = clock + self.FP_DIV_BUSY
-            return int(self.FP_DIV_DELAY)
+            return self.FP_DIV_DELAY - 1
         if op == 'HLT':
             system.exit(0)
+
+
+
+    def unitFree(self, inst, clock):
+
+        # TODO: Pipelining for MUL and DIV and ADD
+
+        Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
+        Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
+        
+
+        op = inst[0]
+        
+        if op in Int_Arithmetic:
+            # TODO: What is the deal with the 1 cycle MEM access, guarenteed 1 cycle write? Do I have to track this?
+            return True
+        if op in Mem_Ops:
+            return True
+        if op == "ADD.D" or op == "SUB.D":
+            if self.FP_ADD_BUSY < clock:
+                return True
+            else:
+                return False
+        if op == "MUL.D":
+            if self.FP_MULT_BUSY < clock:
+                return True
+            else:
+                return False
+        if op == "DIV.D":
+            if self.FP_DIV_BUSY < clock:
+                return True
+            else:
+                return False
+        if op == 'HLT':
+            system.exit(0)
+
 
 
     def needsMem(self, inst):
@@ -83,3 +120,6 @@ class Ex:
             return True
         else:
             pdb.set_trace()
+
+    def status(self):
+        print "FP_ADD:{0} FP_MULT:{1} FP_DIV:{2}".format(str(self.FP_ADD_BUSY), str(self.FP_MULT_BUSY), str(self.FP_DIV_BUSY))
