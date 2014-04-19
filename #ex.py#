@@ -1,8 +1,0 @@
-#!/usr/bin/python
-
-
-
-class Ex:
-    
-    def start(inst, clock):
-        

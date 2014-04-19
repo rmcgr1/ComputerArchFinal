@@ -33,7 +33,7 @@ def setup():
 
 def update_state(ins, stage, clock):
     if not state.has_key(ins):
-        state[ins] = {'IF':'', 'ID':'', 'EX':'', 'WB':''}
+        state[ins] = {'IF':'', 'ID':'', 'EX':'', 'WB':'', 'RAW':'','WAR':'','WAW':'','Struct':''}
         state_list.append({ins :state[ins]})
     state[ins][stage] = clock
 
@@ -43,20 +43,13 @@ def to_string(ins):
         rv = rv + i + ' '
     return rv.strip()
 
-def yesno(string):
-    if string.upper() == "NO":
-        return False
-    elif string.upper() == "YES":
-        return True
-    else:
-        pdb.set_trace()
 
 def status():
 
     print "Clock: " + str(clock)
     print "IF: {0} ID: {1} EX: {2} WB: {3}".format(IF, ID, EX, WB)
     print ""
-    print "Instruction\t\tIF\tID\tEX\tWB"
+    print "Instruction\t\tIF\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct"
     for s in state_list:
         print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "\t{0}\t{1}\t{2}\t{3}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'])
 
@@ -101,11 +94,12 @@ def EX_stage():
         
         
         # WORK HERE (check to make sure config is parsed then...) Add to EX_completion, modify for each FU
-        if not EX_completion.has_key(clock+1):
-            EX_completion[clock] = list(inst)
+        if not EX_completion.has_key(completion_cycle):
+            EX_completion[completion_cycle] = list()
+            EX_completion[completion_cycle].append(inst)
             EX.pop()
         else:
-            EX_completion[clock].append(inst)
+            EX_completion[completion_cycle].append(inst)
             EX.pop()
 
         
@@ -113,10 +107,14 @@ def EX_stage():
         # check EX_completion here too to do the status update
         # Need to account for multiple instructions finishing in this cycle
         if EX_completion.has_key(clock):
-            inst = EX_completion[clock]
-            update_state(to_string(inst), "EX", clock)
-            WB.append(inst)
+            inst_list = EX_completion[clock]
+            for inst in inst_list:
+                if execute.needsMem(inst):
+                    execute.Mem(inst)
+                update_state(to_string(inst), "EX", clock)
+                WB.append(inst)
 
+            
 
 
 def WB_stage():
@@ -144,19 +142,8 @@ ID = []
 EX = []
 WB = []
 
-FP_ADD_BUSY = False
-FP_MULT_BUSY = False
-FP_DIV_BUSY = False
-INT_BUSY = False
 
-execute = Ex()
-
-FP_DIV_PIPELINED = yesno(config['FP divider'][1])
-FP_DIV_DELAY = config['FP divider'][0]
-FP_ADD_PIPELINED = yesno(config['FP adder'][1])
-FP_ADD_DELAY = config['FP adder'][0]
-FP_MULT_PIPELINED = yesno(config['FP Multiplier'][1])
-FP_MULT_DELAY = config['FP Multiplier'][0]
+execute = Ex(config)
 
 EX_completion = {}
 state = {}
