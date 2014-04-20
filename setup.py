@@ -53,7 +53,7 @@ class Setup:
         for l in lines:
             l = l.strip().strip(',').split()
             if (l[0])[-1] == ':':
-                lable_dict[location] = l[0]
+                lable_dict[location] = l[0].strip(':')
                 inst_dict[location] = l[1:]
             else:
                 inst_dict[location] = l

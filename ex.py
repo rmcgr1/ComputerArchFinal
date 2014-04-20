@@ -48,11 +48,10 @@ class Ex:
 
     def setDelay(self, inst, clock):
 
-        # TODO: Pipelining for MUL and DIV and FP ADD
+        # TODO: Test pipelining for MUL and DIV and FP ADD
 
         Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
         Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
-        
 
         op = inst[0]
         
@@ -63,20 +62,24 @@ class Ex:
             return 0
         if op == "ADD.D" or op == "SUB.D":
             if not self.FP_ADD_PIPELINED:
-                self.FP_ADD_BUSY = self.FP_ADD_BUSY + self.FP_ADD_DELAY - 1
+                self.FP_ADD_BUSY = clock + self.FP_ADD_DELAY - 1
             return self.FP_ADD_DELAY - 1
         if op == "MUL.D":
+            if not self.FP_MULT_PIPELINED:
+                self.FP_MULT_BUSY = clock + self.FP_MULT_DELAY - 1 
             return self.FP_MULT_DELAY - 1
         if op == "DIV.D":
+            if not self.FP_DIV_PIPELINED:
+                self.FP_DIV_BUSY = clock + self.FP_DIV_DELAY - 1 
             return self.FP_DIV_DELAY - 1
         if op == 'HLT':
-            system.exit(0)
+            sys.exit(0)
 
 
 
     def unitFree(self, inst, clock):
 
-        # TODO: Pipelining for MUL and DIV and ADD
+        # TODO: What about two Int/Loads leaving EX at the same time?
 
         Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
         Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
@@ -85,7 +88,6 @@ class Ex:
         op = inst[0]
         
         if op in Int_Arithmetic:
-            # TODO: What is the deal with the 1 cycle MEM access, guarenteed 1 cycle write? Do I have to track this?
             return True
         if op in Mem_Ops:
             return True
@@ -105,7 +107,7 @@ class Ex:
             else:
                 return False
         if op == 'HLT':
-            system.exit(0)
+            sys.exit(0)
 
 
 
@@ -122,4 +124,4 @@ class Ex:
             pdb.set_trace()
 
     def status(self):
-        print "FP_ADD:{0} FP_MULT:{1} FP_DIV:{2}".format(str(self.FP_ADD_BUSY), str(self.FP_MULT_BUSY), str(self.FP_DIV_BUSY))
+        return "FP_ADD:{0} FP_MULT:{1} FP_DIV:{2}".format(str(self.FP_ADD_BUSY), str(self.FP_MULT_BUSY), str(self.FP_DIV_BUSY))
