@@ -10,6 +10,8 @@ The controller to kick of all stages of the MIPS processor
 import pdb
 
 from setup import Setup
+from ex import Ex
+from id import Id
 
 ###
 # Helper Functions
@@ -17,7 +19,7 @@ from setup import Setup
 
 def setup():
     setup = Setup()
-    inst_list, lable_list = setup.parse_instructions('inst.txt')
+    inst_list, label_list = setup.parse_instructions('inst.txt')
     register = setup.parse_registers('reg.txt')
     memory = setup.parse_memory('data.txt')
     config = setup.parse_config('config.txt')
@@ -28,13 +30,13 @@ def setup():
     #print memory
     #print config
 
-    return inst_list, lable_list, register, memory, config
+    return inst_list, label_list, register, memory, config
 
-def update_state(ins, stage, clock):
+def update_state(ins, stage, val):
     if not state.has_key(ins):
-        state[ins] = {'IF':'', 'ID':'', 'EX':'', 'WB':''}
+        state[ins] = {'IF':'', 'ID':'', 'EX':'', 'WB':'', 'RAW':'','WAR':'','WAW':'','Struct':''}
         state_list.append({ins :state[ins]})
-    state[ins][stage] = clock
+    state[ins][stage] = val
 
 def to_string(ins):
     rv = ''
@@ -42,22 +44,18 @@ def to_string(ins):
         rv = rv + i + ' '
     return rv.strip()
 
-def yesno(string):
-    if string.upper() = "NO":
-        return False
-    else if string.upper() = "YES":
-        return True
-    else:
-        pdb.set_trace()
 
 def status():
 
-    print "Clock: " + str(clock)
-    print "IF: {0} ID: {1} EX: {2} WB: {3}".format(IF, ID, EX, WB)
     print ""
-    print "Instruction\t\tIF\tID\tEX\tWB"
+    print "Clock: " + str(clock)
+    print "IF: {0}  //  ID: {1} ID_RDY: {2}  //  EX: {3} EX_RDY: {4}  //  WB: {5}".format(IF, ID, ID_Ready, EX, EX_Ready, WB)
+    print ""
+    print execute.status()
+    print ""
+    print "Instruction\t\tIF\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct"
     for s in state_list:
-        print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "{0}\t{1}\t{2}\t{3}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'])
+        print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "\t{0}\t{1}\t{2}\t{3}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'])
 
     
 
@@ -71,7 +69,7 @@ def ready_instructions():
 
 def IF_stage():
     global EIP
-    if proceed:
+    if proceed and IF_Proceed:
         inst = instruction[EIP]
         IF.append(inst)
         EIP = EIP + 4
@@ -82,41 +80,96 @@ def IF_stage():
 def ID_stage():
     if proceed and len(IF) != 0:
         
-        inst = IF.pop(0)
-        ID.append(inst)
-        ## Maybe check functional unit availability here and set flags?
+        # TODO This may be trouble trying to remove from list
+        # TODO Is this proper way to prevent more fetches?
 
-        update_state(to_string(inst), "ID", clock)
+        ID.append(IF.pop(0))
+
+        # TODO do jumps/branches first so we don't have to do parsing issues
+    
+        for inst in ID:
+            if not execute.unitFree(inst, clock):
+                # TODO record hazard here? Waiting on a FU is a structural hazard right?
+                update_state(to_string(inst), "Struct", "Y")
+                IF_Proceed = False
+                continue
+            if decode.RAW_Hazard(inst, EX):
+                update_state(to_string(inst), "RAW", "Y")
+                # Not stalling the IF instruction?!
+                continue
+            if decode.WAR_Hazard(inst, EX):
+                update_state(to_string(inst), "WAR", "Y")
+                # Not stalling the IF instruction?!
+                continue
+            if decode.WAW_Hazard(inst, EX):
+                update_state(to_string(inst), "WAW", "Y")
+                # Not stalling the IF instruction?!
+                continue
+
+
+            ID_Ready.append(inst)
+            ID.remove(inst)
+            update_state(to_string(inst), "ID", clock)
+
+        # TODO this needs to change to if there are no more delayed instructions due to structural hazards
+        if len(ID) == 0:
+            IF_Proceed = True
+
 
 def EX_stage():
-    if proceed and len(ID) != 0:
+    global ID_Ready
+
+    if proceed and len(ID_Ready) != 0:
         
-        # can we have multiple instructions enter EX?
-        inst = ID.pop(0)
-        EX.append(inst)
-        
-        # WORK HERE (check to make sure config is parsed then...) Add to EX_completion, modify for each FU
-        if not EX_completion.has_key(clock+1):
-            EX_completion[clock] = list(inst)
-            EX.pop()
-        else:
-            EX_completion[clock].append(inst)
-            EX.pop()
-        
+
+        # can we have multiple instructions enter EX, sure!
+        for inst in ID_Ready:
+
+            EX.append(inst)
+
+            completion_cycle = execute.start(inst, clock)
+
+            if not EX_completion.has_key(completion_cycle):
+                EX_completion[completion_cycle] = list()
+                EX_completion[completion_cycle].append(inst)
+            else:
+                EX_completion[completion_cycle].append(inst)
+
+        ID_Ready = []
+                 
         # check EX_completion here too to do the status update
         # Need to account for multiple instructions finishing in this cycle
+
         if EX_completion.has_key(clock):
-            inst = EX_completion[clock]
-            update_state(to_string(inst), "EX", clock)
-            WB.append(inst)
+            inst_list = EX_completion[clock]
+            for inst in inst_list:
+                # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
+                if execute.needsMem(inst):
+                    execute.Mem(inst)
+                update_state(to_string(inst), "EX", clock)
+                EX.remove(inst)
+                EX_Ready.append(inst)
+
 
 
 
 def WB_stage():
-    if proceed and len(WB) != 0:
+    if proceed and len(EX_Ready) != 0:
+        global WB
+
+        WB = []
+
+        # Contention for single WB port
+        # TODO Priority given to not pipelined FU that takes most cycles, if tie, earielst issued
+        # TODO Record Structural Hazard
         
-        # Need to account for multiple instructions finishing in this cycle
-        inst = WB.pop()
+        if len(EX_Ready) > 1:
+            # TODO Change this
+            WB.append(EX_Ready.pop())
+        elif len(EX_Ready) == 1:
+            WB.append(EX_Ready.pop())
+        
+        inst = WB[0]
         update_state(to_string(inst), "WB", clock)
 
     
@@ -124,32 +177,26 @@ def WB_stage():
 # State Variables
 ###
 
-instruction, lable, register, memory, config = setup()
+instruction, labels, register, memory, config = setup()
 
 instruction.keys().sort()
 
 clock = 0
 EIP = 0
+
 proceed = True
+IF_Proceed = True
 
 IF = []
 ID = []
+ID_Ready = []
 EX = []
+EX_Ready = []
 WB = []
 
-FP_ADD_BUSY = False
-FP_MULT_BUSY = False
-FP_DIV_BUSY = False
-INT_BUSY = False
 
-FP_DIV_PIPELINED = yesno(config['FP divider'][1])
-FP_DIV_DELAY = config['FP divider'][0])
-FP_ADD_PIPELINED = yesno(config['FP adder'][1])
-FP_ADD_DELAY = config['FP adder'][0]
-FP_MULT_PIPELINED = yesno(config['FP Multiplier'][1])
-FP_MULT_DELAY = config['FP Multipler'][0]
-
-
+execute = Ex(config)
+decode = Id()
 
 
 EX_completion = {}
@@ -160,6 +207,9 @@ pdb.set_trace()
 
 while True:
     clock = clock + 1
+
+    if clock == 4:
+        pdb.set_trace()
 
     WB_stage()
         

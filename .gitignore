@@ -8,3 +8,5 @@ control.py~
 *.py~
 
 *.pyc
+
+*.py~
