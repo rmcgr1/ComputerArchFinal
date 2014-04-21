@@ -130,7 +130,7 @@ def EX_stage():
 
             EX.append(inst)
 
-            completion_cycle = execute.start(inst, clock)
+            completion_cycle = execute.start(inst, clock, register)
 
             if not EX_completion.has_key(completion_cycle):
                 EX_completion[completion_cycle] = list()
@@ -148,7 +148,23 @@ def EX_stage():
             for inst in inst_list:
                 # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
-                    execute.Mem(inst)
+                    
+                    completion_cycle, result = execute.Mem(inst, clock)
+
+                    if not MEM_completion.has_key(completion_cycle):
+                        MEM_completion[completion_cycle] = list()
+                        MEM_completion[completion_cycle].append(inst)
+                    else:
+                        EX_completion[completion_cycle].append(inst)
+                    continue
+
+                update_state(to_string(inst), "EX", clock)
+                EX.remove(inst)
+                EX_Ready.append(inst)
+
+        if MEM_completion.has_key(clock):
+            inst_list = MEM_completion[clock]
+            for inst in inst_list:
                 update_state(to_string(inst), "EX", clock)
                 EX.remove(inst)
                 EX_Ready.append(inst)
@@ -209,6 +225,7 @@ decode = Id()
 
 
 EX_completion = {}
+MEM_completion = {}
 state = {}
 state_list = []
 

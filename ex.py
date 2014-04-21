@@ -12,7 +12,7 @@ class Ex:
     FP_ADD_DELAY = ''
     FP_MULT_PIPELINED = ''
     FP_MULT_DELAY = ''
-
+    MEM_DELAY = ''
 
     # Make it show the cycle when its free? or just busy or not?
     FP_ADD_BUSY = 1
@@ -20,6 +20,8 @@ class Ex:
     FP_DIV_BUSY = 1
     INT_BUSY = 1
 
+    Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
+    Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
 
 
     def __init__(self, config):    
@@ -29,16 +31,24 @@ class Ex:
         self.FP_ADD_DELAY = int(config['FP adder'][0])
         self.FP_MULT_PIPELINED = self.yesno(config['FP Multiplier'][1])
         self.FP_MULT_DELAY = int(config['FP Multiplier'][0])
-
+        self.MEM_DELAY = int(config['Main memory'][0])
     
 
-    def start(self, inst, clock):
+    def start(self, inst, clock, register):
+        result = ''
         ex_cycles = self.setDelay(inst, clock)
-        return ex_cycles + clock
+        result = self.calculateResult(inst, register)
+        return ex_cycles + clock, result
 
 
-    def Mem(self, inst):
-        pass
+    def Mem(self, inst, clock):
+        if inst in Int_Arithmetic:
+            return 1 + clock
+        if inst in Mem_Ops:
+            return 1 + self.MEM_DELAY
+        elif:
+            print "ERROR: should not a different type of instruction"
+            pdb.set_trace()
 
 
 
@@ -49,9 +59,6 @@ class Ex:
     def setDelay(self, inst, clock):
 
         # TODO: Test pipelining for MUL and DIV and FP ADD
-
-        Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
-        Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
 
         op = inst[0]
         
@@ -75,15 +82,24 @@ class Ex:
         if op == 'HLT':
             sys.exit(0)
 
+    def calculateResult(self, inst, register):
+
+        Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
+
+        if inst not in Int_Arithmetic:
+            return ''
+        
+        if len(inst) != 4:
+            print "ERROR: Int_Arithmetic with not 3 operands"
+            pdb.set_trace()
+        
+        if inst == 'DADD':
+            return register[inst[2]] + register[inst[3]]
 
 
     def unitFree(self, inst, clock):
 
         # TODO: What about two Int/Loads leaving EX at the same time?
-
-        Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
-        Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
-        
 
         op = inst[0]
         
@@ -112,7 +128,10 @@ class Ex:
 
 
     def needsMem(self, inst):
-        return False
+        if inst in Int_Arithmetic or inst in Mem_Ops:
+            return True
+        else:
+            return False
 
 
     def yesno(self, string):
