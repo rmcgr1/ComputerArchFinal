@@ -37,16 +37,17 @@ class Ex:
     def start(self, inst, clock, register):
         result = ''
         ex_cycles = self.setDelay(inst, clock)
+        pdb.set_trace()
         result = self.calculateResult(inst, register)
         return ex_cycles + clock, result
 
 
     def Mem(self, inst, clock):
-        if inst in Int_Arithmetic:
+        if inst in self.Int_Arithmetic:
             return 1 + clock
-        if inst in Mem_Ops:
+        if inst in self.Mem_Ops:
             return 1 + self.MEM_DELAY
-        elif:
+        else:
             print "ERROR: should not a different type of instruction"
             pdb.set_trace()
 
@@ -62,10 +63,10 @@ class Ex:
 
         op = inst[0]
         
-        if op in Int_Arithmetic:
+        if op in self.Int_Arithmetic:
             # TODO: What is the deal with the 1 cycle MEM access, guarenteed 1 cycle write? Do I have to track this?
             return 0
-        if op in Mem_Ops:
+        if op in self.Mem_Ops:
             return 0
         if op == "ADD.D" or op == "SUB.D":
             if not self.FP_ADD_PIPELINED:
@@ -84,9 +85,8 @@ class Ex:
 
     def calculateResult(self, inst, register):
 
-        Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
 
-        if inst not in Int_Arithmetic:
+        if inst not in self.Int_Arithmetic:
             return ''
         
         if len(inst) != 4:
@@ -94,7 +94,16 @@ class Ex:
             pdb.set_trace()
         
         if inst == 'DADD':
-            return register[inst[2]] + register[inst[3]]
+            return str(bin(int(register[2],2) + int(register[3],2)))[2:]
+
+        if inst == 'DADDI':
+            return str(bin(int(register[2],2) + int(inst[3])))[2:]
+
+        if inst == 'DSUB':
+            return str(bin(int(register[2],2) - int(register[3],2)))[2:]
+
+        if inst == 'DSUBI':
+            return str(bin(int(register[2],2) - int(inst[3])))[2:]
 
 
     def unitFree(self, inst, clock):
@@ -103,9 +112,9 @@ class Ex:
 
         op = inst[0]
         
-        if op in Int_Arithmetic:
+        if op in self.Int_Arithmetic:
             return True
-        if op in Mem_Ops:
+        if op in self.Mem_Ops:
             return True
         if op == "ADD.D" or op == "SUB.D":
             if self.FP_ADD_BUSY < clock:
@@ -128,7 +137,7 @@ class Ex:
 
 
     def needsMem(self, inst):
-        if inst in Int_Arithmetic or inst in Mem_Ops:
+        if inst in self.Int_Arithmetic or inst in self.Mem_Ops:
             return True
         else:
             return False

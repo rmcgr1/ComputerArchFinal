@@ -122,7 +122,7 @@ def ID_stage():
 def EX_stage():
     global ID_Ready
 
-    if proceed and len(ID_Ready) != 0:
+    if proceed and (len(ID_Ready) != 0 or len(EX) != 0):
         
 
         # can we have multiple instructions enter EX, sure!
@@ -130,7 +130,7 @@ def EX_stage():
 
             EX.append(inst)
 
-            completion_cycle = execute.start(inst, clock, register)
+            completion_cycle, result = execute.start(inst, clock, register)
 
             if not EX_completion.has_key(completion_cycle):
                 EX_completion[completion_cycle] = list()
@@ -149,7 +149,7 @@ def EX_stage():
                 # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
                     
-                    completion_cycle, result = execute.Mem(inst, clock)
+                    completion_cycle = execute.Mem(inst, clock)
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
