@@ -37,7 +37,7 @@ F0 - F31 FP registers (32/64 bits)
 
 '''
 
-#import pdb
+import pdb
 
 class Setup:
 
@@ -51,9 +51,9 @@ class Setup:
 
         location = 0
         for l in lines:
-            l = l.strip().strip(',').split()
+            l = l.strip().replace(',','').split()
             if (l[0])[-1] == ':':
-                lable_dict[location] = l[0].strip(':')
+                lable_dict[location] = l[0].replace(':','')
                 inst_dict[location] = l[1:]
             else:
                 inst_dict[location] = l
@@ -98,14 +98,28 @@ class Setup:
         for l in lines:
             l = l.strip().split(':')
             if len(l[1].split()) == 2:
-                config_dict[l[0].strip()] = (l[1].split(',')[0].strip(), l[1].split(',')[1].strip() )
+                config_dict[l[0].strip()] = [l[1].split(',')[0].strip(), l[1].split(',')[1].strip()]
             else:
-                config_dict[l[0].strip()] = (l[1].strip())
+                config_dict[l[0].strip()] = [l[1].strip()]
 
         return config_dict
 
-
-
+    def return_priority(self,config):
+        
+        pipelined = list()
+        unpipelined = list()
+        for k in config.keys():
+            if len(config[k]) == 2:
+                if config[k][1] == 'no':
+                    unpipelined.append([k] + config[k])
+        for k in config.keys():
+            if len(config[k]) == 2:
+                if config[k][1] == 'yes':
+                    pipelined.append([k] + config[k])
+                    
+        unpipelined.sort(key=lambda x: x[1], reverse=True)
+        pipelined.sort(key=lambda x: x[1], reverse=True)
+        return unpipelined + pipelined + [['IU', 1]]
                                   
 
     def parse_old(self, filename):

@@ -15,10 +15,12 @@ class Id:
         # Check to see if any srcs are destinations
 
         return False
-
+    
+    # TODO Implement here
     def WAR_Hazard(self, inst, EX):
         return False
 
+    # TODO Implement here
     def WAW_Hazard(self, inst, EX):
         return False
 

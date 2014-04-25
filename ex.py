@@ -22,7 +22,7 @@ class Ex:
 
     Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
     Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
-
+    Branch_Ops = ['J', 'BNE', 'BEQ']
 
     def __init__(self, config):    
         self.FP_DIV_PIPELINED = self.yesno(config['FP divider'][1])
@@ -37,7 +37,6 @@ class Ex:
     def start(self, inst, clock, register):
         result = ''
         ex_cycles = self.setDelay(inst, clock)
-        pdb.set_trace()
         result = self.calculateResult(inst, register)
         return ex_cycles + clock, result
 
@@ -85,25 +84,38 @@ class Ex:
 
     def calculateResult(self, inst, register):
 
-
-        if inst not in self.Int_Arithmetic:
+        # TODO get the LW/SW address calculation here and use as result
+        
+        if inst[0] not in self.Int_Arithmetic:
             return ''
         
         if len(inst) != 4:
             print "ERROR: Int_Arithmetic with not 3 operands"
             pdb.set_trace()
         
-        if inst == 'DADD':
-            return str(bin(int(register[2],2) + int(register[3],2)))[2:]
+        if inst[0] == 'DADD':
+            return str(bin(int(register[inst[2]],2) + int(register[inst[3]],2)))[2:]
 
-        if inst == 'DADDI':
-            return str(bin(int(register[2],2) + int(inst[3])))[2:]
+        if inst[0] == 'DADDI':
+            return str(bin(int(register[inst[2]],2) + int(inst[3])))[2:]
 
-        if inst == 'DSUB':
-            return str(bin(int(register[2],2) - int(register[3],2)))[2:]
+        if inst[0] == 'DSUB':
+            return str(bin(int(register[inst[2]],2) - int(register[inst[3]],2)))[2:]
 
-        if inst == 'DSUBI':
-            return str(bin(int(register[2],2) - int(inst[3])))[2:]
+        if inst[0] == 'DSUBI':
+            return str(bin(int(register[inst[2]],2) - int(inst[3])))[2:]
+
+        if inst[0] == 'AND':
+            return str(bin(int(register[inst[2]],2) & int(register[inst[3]],2)))[2:]
+        
+        if inst[0] == 'ANDI':
+            return str(bin(int(register[inst[2]],2) & int(inst[3])))[2:]
+
+        if inst[0] == 'OR':
+            return str(bin(int(register[inst[2]],2) | int(register[inst[3]],2)))[2:]
+        
+        if inst[0] == 'ORI':
+            return str(bin(int(register[inst[2]],2) | int(inst[3])))[2:]
 
 
     def unitFree(self, inst, clock):
@@ -115,6 +127,8 @@ class Ex:
         if op in self.Int_Arithmetic:
             return True
         if op in self.Mem_Ops:
+            return True
+        if op in self.Branch_Ops:
             return True
         if op == "ADD.D" or op == "SUB.D":
             if self.FP_ADD_BUSY < clock:

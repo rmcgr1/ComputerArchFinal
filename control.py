@@ -13,6 +13,7 @@ from setup import Setup
 from ex import Ex
 from id import Id
 
+
 ###
 # Helper Functions
 ###
@@ -23,6 +24,7 @@ def setup():
     register = setup.parse_registers('reg.txt')
     memory = setup.parse_memory('data.txt')
     config = setup.parse_config('config.txt')
+    priority = setup.return_priority(config)
 
     #print inst_list 
     #print lable_list
@@ -30,7 +32,7 @@ def setup():
     #print memory
     #print config
 
-    return inst_list, label_list, register, memory, config
+    return inst_list, label_list, register, memory, config, priority
 
 def update_state(ins, stage, val):
     if not state.has_key(ins):
@@ -60,17 +62,39 @@ def status():
         print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "\t{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'], s[s.keys()[0]]['RAW'], s[s.keys()[0]]['WAR'], s[s.keys()[0]]['WAW'], s[s.keys()[0]]['Struct'])
 
     
+def get_issue_cycle(inst):
+    for s in state_list:
+        if s.keys()[0] == inst[0]:
+            return s[s.keys()[0]]['IF']
 
-        
-
-# List of instructions that are ready to be WB'ed
-# Store the calculated cycle that they will exit EX
-def ready_instructions():
-    pass
+def FU_type(inst):
+    op = inst[0]
+    if op in Int_Arithmetic:
+        return 'IU'
+    if op in Mem_Ops:
+        return 'IU'
+    if op in Int_Arithmetic:
+        return 'IU'
+    if op == "ADD.D" or op == "SUB.D":
+        return 'FP adder'
+    if op == "MUL.D":
+        return 'FP Multiplier'
+    if op == "DIV.D":
+        return 'FP divider'
+    
+    
+Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
+Branch_Ops = ['J', 'BNE', 'BEQ']
 
 
 def IF_stage():
     global EIP
+    global IF_Flush
+    
+    if IF_Flush:
+        IF_Flush = False
+        return
+
     if proceed and IF_Proceed:
         inst = instruction[EIP]
         IF.append(inst)
@@ -81,6 +105,9 @@ def IF_stage():
     
 def ID_stage():
     global IF_Proceed
+    global IF_Flush
+    global EIP
+
 
     if proceed and (len(IF) != 0 or len(ID) != 0):
         
@@ -90,7 +117,41 @@ def ID_stage():
             ID.append(IF.pop(0))
 
         # TODO do jumps/branches first so we don't have to do parsing issues
-        # TODO do we also need to check EX_Ready() - I think so
+        
+        # Check for jumps or branches, and flush IF if taken
+        inst = ID[-1]
+        if inst[0] == 'J':
+            update_state(to_string(inst), "ID", clock)
+            ID.remove(inst)
+            for k in labels.keys():
+                if labels[k] == inst[1]:
+                    EIP = k 
+                    IF_Flush = True
+                    break
+                
+        elif inst[0] == 'BEQ':
+            update_state(to_string(inst), "ID", clock)
+            ID.remove(inst)
+            if register[inst[1]] == register[inst[2]]:
+                for k in labels.keys():
+                    if labels[k] == inst[3]:
+                        EIP = k 
+                        IF_Flush = True
+                        break
+                
+
+
+        elif inst[0] == 'BNE':
+            pdb.set_trace()
+            update_state(to_string(inst), "ID", clock)
+            ID.remove(inst)
+            if register[inst[1]] != register[inst[2]]:
+                for k in labels.keys():
+                    if labels[k] == inst[3]:
+                        EIP = k 
+                        IF_Flush = True
+                        break
+
         
         tempID = list(ID)
         for inst in tempID:
@@ -108,7 +169,6 @@ def ID_stage():
                 update_state(to_string(inst), "WAW", "Y")
                 IF_Proceed = False
                 continue
-
 
             ID_Ready.append(inst)
             ID.remove(inst)
@@ -183,26 +243,61 @@ def WB_stage():
         #if decode.WAR_Hazard(inst, EX + EX_Ready):
         #    update_state(to_string(inst), "WAR", "Y")
 
-
+        
         # Contention for single WB port
         # TODO Priority given to not pipelined FU that takes most cycles, if tie, earielst issued
         # TODO Record Structural Hazard
+        # TODO keep FU busy for stalled instruction
+        # TODO what about MEM Ops?
         
         if len(EX_Ready) > 1:
-            # TODO Change this
-            WB.append(EX_Ready.pop())
+            order = []
+
+            pdb.set_trace()
+            # Go through each priority, and if only one hit for each priority issue and move on, else break tie by figuring out issue cycle
+            for p in priority:
+                FU = p[0]
+                tempEX_Ready = list(EX_Ready)
+
+                for inst in tempEX_Ready:
+                    if FU_type(inst) == FU:
+                        order.append(inst)
+
+                if len(order) == 1:
+                    # Issue
+                    WB.append(inst)
+                    EX_Ready.remove(inst)
+                    update_state(to_string(inst), "WB", clock)
+
+                    # Give all other instructions Structural Hazards
+                    for i in EX_Ready:
+                        if i != inst:
+                            update_state(to_string(i), "Struct", 'Y')
+                    break
+
+                elif len(order) > 1:
+                    # TODO test this
+
+                    order.sort(key=lambda x: get_issue_cycle(x), reverse=True)
+                    EX_Ready.remove(order[0])
+                    update_state(to_string(order[0]), "WB", clock)
+                    
+                    # Give all other instructions Structural Hazards
+                    for i in EX_Ready:
+                        if i != inst:
+                            update_state(to_string(i), "Struct", 'Y')
+                    break
+
         elif len(EX_Ready) == 1:
-            WB.append(EX_Ready.pop())
-        
-        inst = WB[0]
-        update_state(to_string(inst), "WB", clock)
+            inst = EX_Ready.pop()
+            update_state(to_string(inst), "WB", clock)
 
     
 ###
 # State Variables
 ###
 
-instruction, labels, register, memory, config = setup()
+instruction, labels, register, memory, config, priority = setup()
 
 instruction.keys().sort()
 
@@ -211,6 +306,7 @@ EIP = 0
 
 proceed = True
 IF_Proceed = True
+IF_Flush = False
 
 IF = []
 ID = []
@@ -228,6 +324,12 @@ EX_completion = {}
 MEM_completion = {}
 state = {}
 state_list = []
+
+
+Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
+Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
+Branch_Ops = ['J', 'BNE', 'BEQ']
+
 
 pdb.set_trace()
 
