@@ -96,7 +96,7 @@ def IF_stage():
         return
 
     if proceed and IF_Proceed:
-        inst = instruction[EIP]
+        inst, I_CACHE_BUSY = fetch.get_instruction(EIP)
         IF.append(inst)
         EIP = EIP + 4
 
@@ -253,7 +253,6 @@ def WB_stage():
         if len(EX_Ready) > 1:
             order = []
 
-            pdb.set_trace()
             # Go through each priority, and if only one hit for each priority issue and move on, else break tie by figuring out issue cycle
             for p in priority:
                 FU = p[0]
@@ -265,6 +264,7 @@ def WB_stage():
 
                 if len(order) == 1:
                     # Issue
+                    inst = order[0]
                     WB.append(inst)
                     EX_Ready.remove(inst)
                     update_state(to_string(inst), "WB", clock)
@@ -318,7 +318,8 @@ WB = []
 
 execute = Ex(config)
 decode = Id()
-
+fetch = If(config, instruction)
+I_CACHE_MISS = False
 
 EX_completion = {}
 MEM_completion = {}
