@@ -12,6 +12,7 @@ import pdb
 from setup import Setup
 from ex import Ex
 from id import Id
+from instructionfetch import If
 
 
 ###
@@ -90,7 +91,8 @@ Branch_Ops = ['J', 'BNE', 'BEQ']
 def IF_stage():
     global EIP
     global IF_Flush
-    
+    global IF_Cache_Proceed
+
     if IF_Flush:
         IF_Flush = False
         return
@@ -252,7 +254,6 @@ def WB_stage():
 
         WB = []
 
-1
         # TODO do WAR Hazard here?
         #if decode.WAR_Hazard(inst, EX + EX_Ready):
         #    update_state(to_string(inst), "WAR", "Y")
