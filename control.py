@@ -96,13 +96,27 @@ def IF_stage():
         return
 
     if proceed and IF_Proceed:
-        inst, I_CACHE_BUSY = fetch.get_instruction(EIP)
-        IF.append(inst)
-        EIP = EIP + 4
+        completion_cycle = 0
+        if IF_Cache_Proceed:
+            inst, completion_cycle = fetch.get_instruction(EIP, clock)
 
-        update_state(to_string(inst), "IF", clock)
+            if not IF_completion.has_key(completion_cycle):
+                IF_completion[completion_cycle] = list()
+                IF_completion[completion_cycle].append(inst)
+            else:
+                IF_completion[completion_cycle].append(inst)
         
-    
+        if completion_cycle != clock:
+            IF_Cache_Proceed = False
+
+        if IF_completion.has_key(clock):
+            inst = IF_completion[completion_cycle]
+            IF.append(inst)
+            update_state(to_string(inst), "IF", clock)
+            IF_Cache_Proceed = True
+
+        EIP = EIP + 4
+        
 def ID_stage():
     global IF_Proceed
     global IF_Flush
@@ -238,7 +252,7 @@ def WB_stage():
 
         WB = []
 
-
+1
         # TODO do WAR Hazard here?
         #if decode.WAR_Hazard(inst, EX + EX_Ready):
         #    update_state(to_string(inst), "WAR", "Y")
@@ -307,6 +321,7 @@ EIP = 0
 proceed = True
 IF_Proceed = True
 IF_Flush = False
+IF_Cache_Proceed = True
 
 IF = []
 ID = []
@@ -322,6 +337,7 @@ fetch = If(config, instruction)
 I_CACHE_MISS = False
 
 EX_completion = {}
+IF_completion = {}
 MEM_completion = {}
 state = {}
 state_list = []
