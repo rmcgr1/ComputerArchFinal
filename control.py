@@ -103,21 +103,20 @@ def IF_stage():
             inst, completion_cycle = fetch.get_instruction(EIP, clock)
 
             if not IF_completion.has_key(completion_cycle):
-                IF_completion[completion_cycle] = list()
-                IF_completion[completion_cycle].append(inst)
-            else:
-                IF_completion[completion_cycle].append(inst)
+                IF_completion[completion_cycle] = inst
+            
+            EIP = EIP + 1
         
         if completion_cycle != clock:
             IF_Cache_Proceed = False
 
         if IF_completion.has_key(clock):
-            inst = IF_completion[completion_cycle]
+            inst = IF_completion[clock]
             IF.append(inst)
             update_state(to_string(inst), "IF", clock)
             IF_Cache_Proceed = True
 
-        EIP = EIP + 4
+
         
 def ID_stage():
     global IF_Proceed
@@ -354,8 +353,8 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 4:
-        pdb.set_trace()
+#    if clock == 4:
+#        pdb.set_trace()
 
     WB_stage()
         

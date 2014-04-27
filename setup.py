@@ -57,7 +57,7 @@ class Setup:
                 inst_dict[location] = l[1:]
             else:
                 inst_dict[location] = l
-            location = location + 4
+            location = location + 1
             
         return inst_dict, lable_dict
 
