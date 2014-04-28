@@ -13,7 +13,7 @@ from setup import Setup
 from ex import Ex
 from id import Id
 from instructionfetch import If
-
+from memoryfetch import Mem
 
 ###
 # Helper Functions
@@ -91,7 +91,8 @@ Branch_Ops = ['J', 'BNE', 'BEQ']
 def IF_stage():
     global EIP
     global IF_Flush
-    
+    global IF_Cache_Proceed
+
     if IF_Flush:
         IF_Flush = False
         return
@@ -102,21 +103,20 @@ def IF_stage():
             inst, completion_cycle = fetch.get_instruction(EIP, clock)
 
             if not IF_completion.has_key(completion_cycle):
-                IF_completion[completion_cycle] = list()
-                IF_completion[completion_cycle].append(inst)
-            else:
-                IF_completion[completion_cycle].append(inst)
+                IF_completion[completion_cycle] = inst
+            
+            EIP = EIP + 4
         
         if completion_cycle != clock:
             IF_Cache_Proceed = False
 
         if IF_completion.has_key(clock):
-            inst = IF_completion[completion_cycle]
+            inst = IF_completion[clock]
             IF.append(inst)
             update_state(to_string(inst), "IF", clock)
             IF_Cache_Proceed = True
 
-        EIP = EIP + 4
+
         
 def ID_stage():
     global IF_Proceed
@@ -219,27 +219,29 @@ def EX_stage():
         # Need to account for multiple instructions finishing in this cycle
 
         if EX_completion.has_key(clock):
-            inst_list = EX_completion[clock]
+            inst_list = ex_completion[clock]
             for inst in inst_list:
                 # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
                     
-                    completion_cycle = execute.Mem(inst, clock)
+                    completion_cycle = execute.access_memory(inst, clock)
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
                         MEM_completion[completion_cycle].append(inst)
                     else:
-                        EX_completion[completion_cycle].append(inst)
-                    continue
-
-                update_state(to_string(inst), "EX", clock)
-                EX.remove(inst)
-                EX_Ready.append(inst)
+                        MEM_completion[completion_cycle].append(inst)
+                else:
+                    # Non memory using instruction finishing EX
+                    # TODO resolve WB contension before getting to WB/Recording leaving EX
+                    update_state(to_string(inst), "EX", clock)
+                    EX.remove(inst)
+                    EX_Ready.append(inst)
 
         if MEM_completion.has_key(clock):
             inst_list = MEM_completion[clock]
             for inst in inst_list:
+                # TODO resolve WB contension before getting to WB/Recording leaving EX
                 update_state(to_string(inst), "EX", clock)
                 EX.remove(inst)
                 EX_Ready.append(inst)
@@ -334,7 +336,7 @@ WB = []
 execute = Ex(config)
 decode = Id()
 fetch = If(config, instruction)
-I_CACHE_MISS = False
+mem = Mem(config, memory)
 
 EX_completion = {}
 IF_completion = {}
@@ -353,8 +355,8 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 4:
-        pdb.set_trace()
+#    if clock == 4:
+#        pdb.set_trace()
 
     WB_stage()
         

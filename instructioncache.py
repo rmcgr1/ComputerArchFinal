@@ -15,8 +15,6 @@ class If:
     instruction = {}
     I_Cache = {'00': ('', ['','','','','']), '01': ('', ['','','','','']), '10': ('', ['','','','','']), '11': ('',['','','','',''])}
 
-    LRU = []
-
     def __init__(self, config, instruction):    
         self.I_CACHE_DELAY = int(config['I-Cache'][0])
         self.MEMORY_DELAY = int(config['Main memory'][0])
@@ -32,17 +30,17 @@ class If:
             print "ERROR, EIP greater than 32"
             pdb.set_trace()
 
-        padding = 5 - len(bin(EIP)[2:])
+        padding = 8 - len(bin(EIP)[2:])
         return bin(EIP)[0:2] + padding * '0' + bin(EIP)[2:]
     
     def get_tag(self, EIP):
-        return (self.get_address(EIP))[2]
+        return (self.get_address(EIP))[2:4]
 
     def get_index(self, EIP):
-        return (self.get_address(EIP))[3:5]
+        return (self.get_address(EIP))[4:6]
 
     def get_offset(self, EIP):
-        return (self.get_address(EIP))[5:]
+        return (self.get_address(EIP))[6:8]
 
 
     def status(self):
@@ -58,6 +56,7 @@ class If:
 
     def get_instruction(self, EIP, clock):
 
+        pdb.set_trace()
         index = self.get_index(EIP)
         tag = self.get_tag(EIP)
         offset = self.get_offset(EIP)
@@ -69,22 +68,20 @@ class If:
             return self.I_Cache[index][1][int('0b' + offset,2)], clock
 
         else:
-            if index == '10':
-                pdb.set_trace()
+            # Cache Miss
             data = self.move_to_cache(EIP)
-
             self.I_Cache[index] = (tag, data)
 
-            self.status()
-            pdb.set_trace()
+#            self.status()
+#            pdb.set_trace()
 
             return self.I_Cache[index][1][int('0b' + offset, 2)], clock + (2 * (self.I_CACHE_DELAY + self.MEMORY_DELAY)) - 1
         
     def move_to_cache(self, EIP):
         data = []
 
-        for i in range(EIP, 4):
-            if i > 32:
+        for i in range(EIP, 16,4):
+            if i > 255:
                 print "ERROR: I cache fetch out of range"
                 pdb.set_trace()
             

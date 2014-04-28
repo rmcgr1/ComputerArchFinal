@@ -41,17 +41,6 @@ class Ex:
         return ex_cycles + clock, result
 
 
-    def Mem(self, inst, clock):
-        if inst in self.Int_Arithmetic:
-            return 1 + clock
-        if inst in self.Mem_Ops:
-            return 1 + self.MEM_DELAY
-        else:
-            print "ERROR: should not a different type of instruction"
-            pdb.set_trace()
-
-
-
 ####
 # Helper Functions
 ####

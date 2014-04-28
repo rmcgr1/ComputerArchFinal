@@ -12,8 +12,8 @@ import pdb
 from setup import Setup
 from ex import Ex
 from id import Id
-from instructionfetch import If
-
+from instructioncache import If
+from memorycache import Mem
 
 ###
 # Helper Functions
@@ -105,7 +105,7 @@ def IF_stage():
             if not IF_completion.has_key(completion_cycle):
                 IF_completion[completion_cycle] = inst
             
-            EIP = EIP + 1
+            EIP = EIP + 4
         
         if completion_cycle != clock:
             IF_Cache_Proceed = False
@@ -219,27 +219,29 @@ def EX_stage():
         # Need to account for multiple instructions finishing in this cycle
 
         if EX_completion.has_key(clock):
-            inst_list = EX_completion[clock]
+            inst_list = ex_completion[clock]
             for inst in inst_list:
                 # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
                     
-                    completion_cycle = execute.Mem(inst, clock)
+                    completion_cycle = mem.access_memory(inst, clock)
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
                         MEM_completion[completion_cycle].append(inst)
                     else:
-                        EX_completion[completion_cycle].append(inst)
-                    continue
-
-                update_state(to_string(inst), "EX", clock)
-                EX.remove(inst)
-                EX_Ready.append(inst)
+                        MEM_completion[completion_cycle].append(inst)
+                else:
+                    # Non memory using instruction finishing EX
+                    # TODO resolve WB contension before getting to WB/Recording leaving EX
+                    update_state(to_string(inst), "EX", clock)
+                    EX.remove(inst)
+                    EX_Ready.append(inst)
 
         if MEM_completion.has_key(clock):
             inst_list = MEM_completion[clock]
             for inst in inst_list:
+                # TODO resolve WB contension before getting to WB/Recording leaving EX
                 update_state(to_string(inst), "EX", clock)
                 EX.remove(inst)
                 EX_Ready.append(inst)
@@ -334,7 +336,7 @@ WB = []
 execute = Ex(config)
 decode = Id()
 fetch = If(config, instruction)
-I_CACHE_MISS = False
+mem = Mem(config, memory, register)
 
 EX_completion = {}
 IF_completion = {}
