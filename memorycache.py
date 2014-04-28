@@ -18,7 +18,7 @@ class Mem:
     LRU = []
 
     def __init__(self, config, memory, register):    
-        self.I_CACHE_DELAY = int(config['D-Cache'][0])
+        self.D_CACHE_DELAY = int(config['D-Cache'][0])
         self.MEMORY_DELAY = int(config['Main memory'][0])
         self.memory = memory
         self.register = register
@@ -110,7 +110,9 @@ class Mem:
         data = []
         
         # Align address to begining offset
-        addr = addr[:-2] + '00'
+        pdb.set_trace()
+        addr = self.get_address(addr)
+        addr = int(addr[:-4] + '0000',2)
 
         for i in range(addr, addr + 16,4):
             if i > int('0x180',16) or i < int('0x100',16):

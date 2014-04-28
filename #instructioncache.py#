@@ -82,7 +82,7 @@ class If:
         
         # Align address to begining offset
         addr = self.get_address(EIP)
-        EIP = int(addr[-4:] + '0000',2)
+        EIP = int(addr[:-4] + '0000',2)
 
         for i in range(EIP, EIP + 16,4):
             if i > 255:
