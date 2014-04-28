@@ -29,8 +29,8 @@ class Mem:
 
     # Return addr as a string with 5 digits and binary prefix '0b'
     def get_address(self, addr):
-        if addr > 32:
-            print "ERROR, addr greater than 32"
+        if addr > 384:
+            print "ERROR, addr greater than 384"
             pdb.set_trace()
 
         padding = 9 - len(bin(addr)[2:])
@@ -47,10 +47,9 @@ class Mem:
 
 
     def status(self):
-        print '00: ' + str(self.D_Cache['00'])
-        print '01: ' + str(self.D_Cache['01'])
-        print '10: ' + str(self.D_Cache['10'])
-        print '11: ' + str(self.D_Cache['11'])
+        print '0: ' + str(self.D_Cache['0'])
+        print '1: ' + str(self.D_Cache['1'])
+
 
 ###
 # Main methods
@@ -59,12 +58,14 @@ class Mem:
     def access_memory(self, instruction, clock):
         if instruction[0] == 'L.D':
             # TODO: see if this is a valid parsing
+            # TODO: LW SW SD, INTOPS
+
             if instruction[2].find('(') == -1:
-                address = register[instruction[2]]
+                address = self.register[instruction[2]]
             else:
                 add = instruction[2][:instruction[2].find('(')]
-                reg = instruction[2][instruction[2].find('('):instruction[2].find(')')]
-                address = int(add) + int(regiser[reg],2)
+                reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
+                address = int(add) + int(self.register[reg],2)
                 result, clock = self.read_memory(address, clock)
                 
             
@@ -73,6 +74,7 @@ class Mem:
     def read_memory(self, addr, clock):
 
         pdb.set_trace()
+
         index = self.get_index(addr)
         tag = self.get_tag(addr)
         offset = self.get_offset(addr)
@@ -92,13 +94,13 @@ class Mem:
             pdb.set_trace()
 
             data = self.move_to_cache(addr)
-            if self.D_Cache[index]['0'][0][0] = '':
-                self.D_Cache[index]['0'][0] = (tag, data)
-                return self.D_Cache[index][0][0][int('0b' + offset, 2)], clock + (2 * (self.I_CACHE_DELAY + self.MEMORY_DELAY)) - 1
+            if self.D_Cache[index][0][0] == '':
+                self.D_Cache[index][0] = (tag, data)
+                return self.D_Cache[index][0][1][int('0b' + offset, 2)], clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) - 1
 
-            if self.D_Cache[index][0][1][0] = '':
-                self.D_Cache[index][0][1] = (tag, data)
-                return self.D_Cache[index][1][int('0b' + offset, 2)], clock + (2 * (self.I_CACHE_DELAY + self.MEMORY_DELAY)) - 1
+            if self.D_Cache[index][1][0] == '':
+                self.D_Cache[index][1] = (tag, data)
+                return self.D_Cache[index][1][1][int('0b' + offset, 2)], clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) - 1
 
             self.status()
 
@@ -106,9 +108,12 @@ class Mem:
         
     def move_to_cache(self, addr):
         data = []
+        
+        # Align address to begining offset
+        addr = addr[:-2] + '00'
 
-        for i in range(addr, 16,4):
-            if i > int('0x180',2) or i < int('0x100',2):
+        for i in range(addr, addr + 16,4):
+            if i > int('0x180',16) or i < int('0x100',16):
                 # TODO: what about fetching at extreme of memory?
                 print "ERROR: I cache fetch out of range"
                 pdb.set_trace()

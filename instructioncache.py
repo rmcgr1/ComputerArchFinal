@@ -79,8 +79,11 @@ class If:
         
     def move_to_cache(self, EIP):
         data = []
+        
+        # Align address to begining offset
+        addr = addr[:-2] + '00'
 
-        for i in range(EIP, 16,4):
+        for i in range(EIP, EIP + 16,4):
             if i > 255:
                 print "ERROR: I cache fetch out of range"
                 pdb.set_trace()

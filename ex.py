@@ -140,7 +140,7 @@ class Ex:
 
 
     def needsMem(self, inst):
-        if inst in self.Int_Arithmetic or inst in self.Mem_Ops:
+        if inst[0] in self.Int_Arithmetic or inst[0] in self.Mem_Ops:
             return True
         else:
             return False

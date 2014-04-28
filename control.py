@@ -219,9 +219,8 @@ def EX_stage():
         # Need to account for multiple instructions finishing in this cycle
 
         if EX_completion.has_key(clock):
-            inst_list = ex_completion[clock]
+            inst_list = EX_completion[clock]
             for inst in inst_list:
-                # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
                     
                     completion_cycle = mem.access_memory(inst, clock)
