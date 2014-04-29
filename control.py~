@@ -12,8 +12,8 @@ import pdb
 from setup import Setup
 from ex import Ex
 from id import Id
-from instructionfetch import If
-from memoryfetch import Mem
+from instructioncache import If
+from memorycache import Mem
 
 ###
 # Helper Functions
@@ -219,12 +219,11 @@ def EX_stage():
         # Need to account for multiple instructions finishing in this cycle
 
         if EX_completion.has_key(clock):
-            inst_list = ex_completion[clock]
+            inst_list = EX_completion[clock]
             for inst in inst_list:
-                # TODO implement MEM here, maybe have to make a MEM_completion and check that each cycle and put it after this block
                 if execute.needsMem(inst):
                     
-                    completion_cycle = execute.access_memory(inst, clock)
+                    completion_cycle = mem.access_memory(inst, clock)
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
@@ -336,7 +335,7 @@ WB = []
 execute = Ex(config)
 decode = Id()
 fetch = If(config, instruction)
-mem = Mem(config, memory)
+mem = Mem(config, memory, register)
 
 EX_completion = {}
 IF_completion = {}
