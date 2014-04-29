@@ -56,7 +56,6 @@ class If:
 
     def get_instruction(self, EIP, clock):
 
-        pdb.set_trace()
         index = self.get_index(EIP)
         tag = self.get_tag(EIP)
         offset = self.get_offset(EIP)
@@ -64,11 +63,11 @@ class If:
         #check index to get the set, then check the tag
         if self.I_Cache[index][0] == tag:
             # Hit
-            pdb.set_trace()
             return self.I_Cache[index][1][int('0b' + offset,2)], clock
 
         else:
             # Cache Miss
+            pdb.set_trace()
             data = self.move_to_cache(EIP)
             self.I_Cache[index] = (tag, data)
 
@@ -82,7 +81,7 @@ class If:
         
         # Align address to begining offset
         addr = self.get_address(EIP)
-        EIP = int(addr[-4:] + '0000',2)
+        EIP = int(addr[:-4] + '0000',2)
 
         for i in range(EIP, EIP + 16,4):
             if i > 255:

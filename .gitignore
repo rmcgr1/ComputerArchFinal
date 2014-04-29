@@ -10,3 +10,7 @@ control.py~
 *.pyc
 
 *.py~
+
+*.pyc
+
+*.py~

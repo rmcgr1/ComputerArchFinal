@@ -15,7 +15,8 @@ class Mem:
     register = {}
     D_Cache = {'0': [('', ['','','','','']), ('', ['','','','',''])], '1': [('', ['','','','','']), ('', ['','','','',''])]}
 
-    LRU = []
+    LRU = {'0': 0, '1' : 0}
+
 
     def __init__(self, config, memory, register):    
         self.D_CACHE_DELAY = int(config['D-Cache'][0])
@@ -56,8 +57,8 @@ class Mem:
 ###
 
     def access_memory(self, instruction, clock):
+        result = ''
         if instruction[0] == 'L.D':
-            # TODO: see if this is a valid parsing
             # TODO: LW SW SD, INTOPS
 
             if instruction[2].find('(') == -1:
@@ -66,14 +67,30 @@ class Mem:
                 add = instruction[2][:instruction[2].find('(')]
                 reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
                 address = int(add) + int(self.register[reg],2)
-                result, clock = self.read_memory(address, clock)
-                
-            
-        return clock
+                result, hit = self.read_memory(address, clock)
+                if not hit:
+                    completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
+                else:
+                    completion_cycle = clock + self.D_CACHE_DELAY
+
+
+        if instruction[0] == 'L.W':
+
+            if instruction[2].find('(') == -1:
+                address = self.register[instruction[2]]
+            else:
+                add = instruction[2][:instruction[2].find('(')]
+                reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
+                address = int(add) + int(self.register[reg],2)
+                result, hit = self.read_memory(address, clock)
+                if not hit:
+                    completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY))
+                else:
+                    completion_cycle = clock + self.D_CACHE_DELAY
+
+        return result, completion_cycle
 
     def read_memory(self, addr, clock):
-
-        pdb.set_trace()
 
         index = self.get_index(addr)
         tag = self.get_tag(addr)
@@ -82,25 +99,25 @@ class Mem:
         #check index to get the set, then check the tag
         if self.D_Cache[index][0][0] == tag:
             # Hit
-            pdb.set_trace()
-            return self.D_Cache[index][0][1][int('0b' + offset,2)], clock
+            self.LRU[index] = 1
+            return self.D_Cache[index][0][1][int('0b' + offset,2)], True
         if self.D_Cache[index][1][0] == tag:
             # Hit
-            pdb.set_trace()
-            return self.D_Cache[index][1][1][int('0b' + offset,2)], clock
+            self.LRU[index] = 0
+            return self.D_Cache[index][1][1][int('0b' + offset,2)], True
        
         else:
             # Cache Miss
-            pdb.set_trace()
-
             data = self.move_to_cache(addr)
             if self.D_Cache[index][0][0] == '':
                 self.D_Cache[index][0] = (tag, data)
-                return self.D_Cache[index][0][1][int('0b' + offset, 2)], clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) - 1
+                self.LRU[index] = 1
+                return self.D_Cache[index][0][1][int('0b' + offset, 2)], False
 
             if self.D_Cache[index][1][0] == '':
                 self.D_Cache[index][1] = (tag, data)
-                return self.D_Cache[index][1][1][int('0b' + offset, 2)], clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) - 1
+                self.LRU[index] = 0
+                return self.D_Cache[index][1][1][int('0b' + offset, 2)], False
 
             self.status()
 
@@ -110,7 +127,6 @@ class Mem:
         data = []
         
         # Align address to begining offset
-        pdb.set_trace()
         addr = self.get_address(addr)
         addr = int(addr[:-4] + '0000',2)
 
