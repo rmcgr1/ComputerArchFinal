@@ -60,7 +60,7 @@ class Mem:
         result = ''
 
         if instruction[0] == 'L.D':
-            # TODO: LW SW SD, INTOPS
+            # TODO: LW SW SD
 
             if instruction[2].find('(') == -1:
                 address = self.register[instruction[2]]
@@ -73,7 +73,8 @@ class Mem:
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
                 else:
                     completion_cycle = clock + self.D_CACHE_DELAY
-
+            
+            # Dont care about implementing result for FP regs
 
         if instruction[0] == 'L.W':
 
@@ -88,6 +89,8 @@ class Mem:
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY))
                 else:
                     completion_cycle = clock + self.D_CACHE_DELAY
+
+            self.register[inst[1]] = result
 
         return result, completion_cycle
 

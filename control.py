@@ -92,10 +92,9 @@ def IF_stage():
     global EIP
     global IF_Flush
     global IF_Cache_Proceed
+    global IF_New_EIP
 
-    if IF_Flush:
-        IF_Flush = False
-        return
+    inst = ''
 
     if proceed and IF_Proceed:
         completion_cycle = 0
@@ -117,12 +116,23 @@ def IF_stage():
             update_state(to_string(inst), "IF", clock)
             IF_Cache_Proceed = True
 
+    if IF_Flush:
+        IF_Flush = False
+        if inst != '':
+            IF.remove(inst)
+
+    if IF_New_EIP != -1:
+        EIP = IF_New_EIP
+        IF_New_EIP = -1
+
+
 
         
 def ID_stage():
     global IF_Proceed
     global IF_Flush
     global EIP
+    global IF_New_EIP
 
 
     if proceed and (len(IF) != 0 or len(ID) != 0):
@@ -144,7 +154,7 @@ def ID_stage():
                 ID.remove(inst)
                 for k in labels.keys():
                     if labels[k] == inst[1]:
-                        EIP = k 
+                        IF_New_EIP = k 
                         IF_Flush = True
                         return
 
@@ -153,27 +163,28 @@ def ID_stage():
                     update_state(to_string(inst), "RAW", "Y")
                     IF_Proceed = False
                     continue
+                IF_Proceed = True
                 update_state(to_string(inst), "ID", clock)
                 ID.remove(inst)
                 if register[inst[1]] == register[inst[2]]:
                     for k in labels.keys():
                         if labels[k] == inst[3]:
-                            EIP = k 
+                            IF_New_EIP = k 
                             IF_Flush = True
                             return
 
             elif inst[0] == 'BNE':
-                pdb.set_trace()
                 if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
                     update_state(to_string(inst), "RAW", "Y")
                     IF_Proceed = False
                     continue
+                IF_Proceed = True
                 update_state(to_string(inst), "ID", clock)
                 ID.remove(inst)
                 if register[inst[1]] != register[inst[2]]:
                     for k in labels.keys():
                         if labels[k] == inst[3]:
-                            EIP = k 
+                            IF_New_EIP = k 
                             IF_Flush = True
                             return
 
@@ -213,7 +224,7 @@ def EX_stage():
 
             EX.append(inst)
 
-            completion_cycle, result = execute.start(inst, clock, register)
+            completion_cycle = execute.start(inst, clock, register)
 
             if not EX_completion.has_key(completion_cycle):
                 EX_completion[completion_cycle] = list()
@@ -343,6 +354,7 @@ proceed = True
 IF_Proceed = True
 IF_Flush = False
 IF_Cache_Proceed = True
+IF_New_EIP = -1
 
 MEM_BUSY = False
 
@@ -354,7 +366,7 @@ EX_Ready = []
 WB = []
 
 
-execute = Ex(config)
+execute = Ex(config, register)
 decode = Id()
 fetch = If(config, instruction)
 mem = Mem(config, memory, register)
@@ -376,7 +388,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 45:
+    if clock == 49:
         pdb.set_trace()
 
     WB_stage()

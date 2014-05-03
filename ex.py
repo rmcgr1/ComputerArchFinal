@@ -24,7 +24,9 @@ class Ex:
     Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
     Branch_Ops = ['J', 'BNE', 'BEQ']
 
-    def __init__(self, config):    
+    register = {}
+
+    def __init__(self, config, register):    
         self.FP_DIV_PIPELINED = self.yesno(config['FP divider'][1])
         self.FP_DIV_DELAY = int(config['FP divider'][0])
         self.FP_ADD_PIPELINED = self.yesno(config['FP adder'][1])
@@ -32,13 +34,13 @@ class Ex:
         self.FP_MULT_PIPELINED = self.yesno(config['FP Multiplier'][1])
         self.FP_MULT_DELAY = int(config['FP Multiplier'][0])
         self.MEM_DELAY = int(config['Main memory'][0])
-    
+        self.register = register
 
     def start(self, inst, clock, register):
         result = ''
         ex_cycles = self.setDelay(inst, clock)
-        result = self.calculateResult(inst, register)
-        return ex_cycles + clock, result
+        self.calculateResult(inst, register)
+        return ex_cycles + clock
 
 
 ####
@@ -83,28 +85,28 @@ class Ex:
             pdb.set_trace()
         
         if inst[0] == 'DADD':
-            return str(bin(int(register[inst[2]],2) + int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) + int(register[inst[3]],2)))[2:]
 
         if inst[0] == 'DADDI':
-            return str(bin(int(register[inst[2]],2) + int(inst[3])))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) + int(inst[3])))[2:]
 
         if inst[0] == 'DSUB':
-            return str(bin(int(register[inst[2]],2) - int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) - int(register[inst[3]],2)))[2:]
 
         if inst[0] == 'DSUBI':
-            return str(bin(int(register[inst[2]],2) - int(inst[3])))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) - int(inst[3])))[2:]
 
         if inst[0] == 'AND':
-            return str(bin(int(register[inst[2]],2) & int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) & int(register[inst[3]],2)))[2:]
         
         if inst[0] == 'ANDI':
-            return str(bin(int(register[inst[2]],2) & int(inst[3])))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) & int(inst[3])))[2:]
 
         if inst[0] == 'OR':
-            return str(bin(int(register[inst[2]],2) | int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) | int(register[inst[3]],2)))[2:]
         
         if inst[0] == 'ORI':
-            return str(bin(int(register[inst[2]],2) | int(inst[3])))[2:]
+            self.register[inst[1]] = str(bin(int(register[inst[2]],2) | int(inst[3])))[2:]
 
 
     def unitFree(self, inst, clock):

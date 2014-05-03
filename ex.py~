@@ -53,7 +53,7 @@ class Ex:
         
         if op in self.Int_Arithmetic:
             # TODO: What is the deal with the 1 cycle MEM access, guarenteed 1 cycle write? Do I have to track this?
-            return 0
+            return 1
         if op in self.Mem_Ops:
             return 0
         if op == "ADD.D" or op == "SUB.D":
