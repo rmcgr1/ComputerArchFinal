@@ -67,7 +67,7 @@ class If:
 
         else:
             # Cache Miss
-            pdb.set_trace()
+
             data = self.move_to_cache(EIP)
             self.I_Cache[index] = (tag, data)
 

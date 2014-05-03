@@ -15,6 +15,17 @@ class Id:
         # Check to see if any srcs are destinations
 
         return False
+
+    def RAW_Hazard_Branch(self, inst, EX):
+        source_registers = self.getSourceRegistersBranch(inst)
+        dest_registers = self.getDestinationRegisers(EX)
+
+        for r in source_registers:
+            if r in dest_registers:
+                return True
+        # Check to see if any srcs are destinations
+
+        return False
     
     # TODO Implement here
     def WAR_Hazard(self, inst, EX):
@@ -49,4 +60,12 @@ class Id:
             if sec.find('F') != -1:
                 l.append(sec[sec.find('F'):])
         
+        return l
+
+    def getSourceRegistersBranch(self, inst):
+        l = []
+
+        l.append(inst[1])
+        l.append(inst[2])
+
         return l

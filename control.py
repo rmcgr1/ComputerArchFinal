@@ -135,53 +135,48 @@ def ID_stage():
         # TODO do jumps/branches first so we don't have to do parsing issues
         
         # Check for jumps or branches, and flush IF if taken
-        inst = ID[-1]
-        if inst[0] == 'J':
-            if decode.RAW_Hazard(inst, EX + EX_Ready):
-                update_state(to_string(inst), "RAW", "Y")
-                IF_Proceed = False
-                continue
-            update_state(to_string(inst), "ID", clock)
-            ID.remove(inst)
-            for k in labels.keys():
-                if labels[k] == inst[1]:
-                    EIP = k 
-                    IF_Flush = True
-                    break
-                
-        elif inst[0] == 'BEQ':
-            if decode.RAW_Hazard(inst, EX + EX_Ready):
-                update_state(to_string(inst), "RAW", "Y")
-                IF_Proceed = False
-                continue
-            update_state(to_string(inst), "ID", clock)
-            ID.remove(inst)
-            if register[inst[1]] == register[inst[2]]:
-                for k in labels.keys():
-                    if labels[k] == inst[3]:
-                        EIP = k 
-                        IF_Flush = True
-                        break
-                
-
-
-        elif inst[0] == 'BNE':
-            if decode.RAW_Hazard(inst, EX + EX_Ready):
-                update_state(to_string(inst), "RAW", "Y")
-                IF_Proceed = False
-                continue
-            update_state(to_string(inst), "ID", clock)
-            ID.remove(inst)
-            if register[inst[1]] != register[inst[2]]:
-                for k in labels.keys():
-                    if labels[k] == inst[3]:
-                        EIP = k 
-                        IF_Flush = True
-                        break
-
         
         tempID = list(ID)
         for inst in tempID:
+
+            if inst[0] == 'J':
+                update_state(to_string(inst), "ID", clock)
+                ID.remove(inst)
+                for k in labels.keys():
+                    if labels[k] == inst[1]:
+                        EIP = k 
+                        IF_Flush = True
+                        return
+
+            elif inst[0] == 'BEQ':
+                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
+                    update_state(to_string(inst), "RAW", "Y")
+                    IF_Proceed = False
+                    continue
+                update_state(to_string(inst), "ID", clock)
+                ID.remove(inst)
+                if register[inst[1]] == register[inst[2]]:
+                    for k in labels.keys():
+                        if labels[k] == inst[3]:
+                            EIP = k 
+                            IF_Flush = True
+                            return
+
+            elif inst[0] == 'BNE':
+                pdb.set_trace()
+                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
+                    update_state(to_string(inst), "RAW", "Y")
+                    IF_Proceed = False
+                    continue
+                update_state(to_string(inst), "ID", clock)
+                ID.remove(inst)
+                if register[inst[1]] != register[inst[2]]:
+                    for k in labels.keys():
+                        if labels[k] == inst[3]:
+                            EIP = k 
+                            IF_Flush = True
+                            return
+
             if not execute.unitFree(inst, clock):
                 # TODO record hazard here? Waiting on a FU is a structural hazard right?
                 update_state(to_string(inst), "Struct", "Y")
