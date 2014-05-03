@@ -40,52 +40,6 @@ class Ex:
         result = self.calculateResult(inst, register)
         return ex_cycles + clock, result
 
-###
-# Memory Functions
-###
-
-    def get_address(self, addr):
-        #TODO figure out top bound of memory
-        if addr > 200:
-            print "ERROR, addr greater than 32"
-            pdb.set_trace()
-
-        padding = 5 - len(bin(addr)[2:])
-        return bin(addr)[0:2] + padding * '0' + bin(addr)[2:]
-
-    def get_tag(self, addr):
-        return (self.get_address(addr))[2]
-
-    def get_index(self, addr):
-        return (self.get_address(addr))[3:5]
-
-    def get_offset(self, addr):
-        return (self.get_address(addr))[5:]
-
-
-
-    def access_memory(self, inst, clock):
-        if inst in self.Int_Arithmetic:
-            return 1 + clock
-        if inst in self.Mem_Ops:
-            return 1 + self.MEM_DELAY
-        else:
-            print "ERROR: should not a different type of instruction"
-            pdb.set_trace()
-
-        
-
-
-    def Mem(self, inst, clock):
-        if inst in self.Int_Arithmetic:
-            return 1 + clock
-        if inst in self.Mem_Ops:
-            return 1 + self.MEM_DELAY
-        else:
-            print "ERROR: should not a different type of instruction"
-            pdb.set_trace()
-
-
 
 ####
 # Helper Functions
@@ -186,7 +140,7 @@ class Ex:
 
 
     def needsMem(self, inst):
-        if inst in self.Int_Arithmetic or inst in self.Mem_Ops:
+        if inst[0] in self.Mem_Ops:
             return True
         else:
             return False

@@ -137,6 +137,10 @@ def ID_stage():
         # Check for jumps or branches, and flush IF if taken
         inst = ID[-1]
         if inst[0] == 'J':
+            if decode.RAW_Hazard(inst, EX + EX_Ready):
+                update_state(to_string(inst), "RAW", "Y")
+                IF_Proceed = False
+                continue
             update_state(to_string(inst), "ID", clock)
             ID.remove(inst)
             for k in labels.keys():
@@ -146,6 +150,10 @@ def ID_stage():
                     break
                 
         elif inst[0] == 'BEQ':
+            if decode.RAW_Hazard(inst, EX + EX_Ready):
+                update_state(to_string(inst), "RAW", "Y")
+                IF_Proceed = False
+                continue
             update_state(to_string(inst), "ID", clock)
             ID.remove(inst)
             if register[inst[1]] == register[inst[2]]:
@@ -158,6 +166,10 @@ def ID_stage():
 
 
         elif inst[0] == 'BNE':
+            if decode.RAW_Hazard(inst, EX + EX_Ready):
+                update_state(to_string(inst), "RAW", "Y")
+                IF_Proceed = False
+                continue
             update_state(to_string(inst), "ID", clock)
             ID.remove(inst)
             if register[inst[1]] != register[inst[2]]:
@@ -369,7 +381,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 18:
+    if clock == 45:
         pdb.set_trace()
 
     WB_stage()

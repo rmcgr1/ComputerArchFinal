@@ -58,6 +58,7 @@ class Mem:
 
     def access_memory(self, instruction, clock):
         result = ''
+
         if instruction[0] == 'L.D':
             # TODO: LW SW SD, INTOPS
 

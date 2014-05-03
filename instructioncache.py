@@ -26,8 +26,8 @@ class If:
 
     # Return EIP as a string with 5 digits and binary prefix '0b'
     def get_address(self, EIP):
-        if EIP > 32:
-            print "ERROR, EIP greater than 32"
+        if EIP > int('0x100',16):
+            print "ERROR, EIP greater than 0x100"
             pdb.set_trace()
 
         padding = 8 - len(bin(EIP)[2:])

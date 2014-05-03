@@ -100,10 +100,11 @@ def IF_stage():
     if proceed and IF_Proceed:
         completion_cycle = 0
         if IF_Cache_Proceed:
+            # TODO record ICache miss to stall DCache
             inst, completion_cycle = fetch.get_instruction(EIP, clock)
 
-            if not IF_completion.has_key(completion_cycle):
-                IF_completion[completion_cycle] = inst
+            #if not IF_completion.has_key(completion_cycle):
+            IF_completion[completion_cycle] = inst
             
             EIP = EIP + 4
         
@@ -157,7 +158,6 @@ def ID_stage():
 
 
         elif inst[0] == 'BNE':
-            pdb.set_trace()
             update_state(to_string(inst), "ID", clock)
             ID.remove(inst)
             if register[inst[1]] != register[inst[2]]:
@@ -196,6 +196,7 @@ def ID_stage():
 
 def EX_stage():
     global ID_Ready
+    global MEM_BUSY
 
     if proceed and (len(ID_Ready) != 0 or len(EX) != 0):
         
@@ -223,7 +224,18 @@ def EX_stage():
             for inst in inst_list:
                 if execute.needsMem(inst):
                     
-                    completion_cycle = mem.access_memory(inst, clock)
+                    if MEM_BUSY:
+                        update_state(to_string(inst), "Struct", 'Y')
+                        if not EX_completion.has_key(clock + 1 ):
+                            EX_completion[clock + 1] = list()
+                            EX_completion[clock + 1].append(inst)
+                        else:
+                            EX_completion[clock + 1].append(inst)
+                        continue
+
+
+                    result, completion_cycle = mem.access_memory(inst, clock)
+                    MEM_BUSY = True
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
@@ -238,6 +250,7 @@ def EX_stage():
                     EX_Ready.append(inst)
 
         if MEM_completion.has_key(clock):
+            MEM_BUSY = False
             inst_list = MEM_completion[clock]
             for inst in inst_list:
                 # TODO resolve WB contension before getting to WB/Recording leaving EX
@@ -324,6 +337,8 @@ IF_Proceed = True
 IF_Flush = False
 IF_Cache_Proceed = True
 
+MEM_BUSY = False
+
 IF = []
 ID = []
 ID_Ready = []
@@ -354,8 +369,8 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-#    if clock == 4:
-#        pdb.set_trace()
+    if clock == 18:
+        pdb.set_trace()
 
     WB_stage()
         
