@@ -86,6 +86,12 @@ def status():
     for s in state_list:
         print s.keys()[0] + (21 - len(s.keys()[0])) * ' ' +  "\t{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}".format(s[s.keys()[0]]['IF'], s[s.keys()[0]]['ID'], s[s.keys()[0]]['EX'], s[s.keys()[0]]['WB'], s[s.keys()[0]]['RAW'], s[s.keys()[0]]['WAR'], s[s.keys()[0]]['WAW'], s[s.keys()[0]]['Struct'])
 
+
+def last_instruction():
+    temp = instruction.keys()
+    temp.sort()
+    return temp[-1]
+
     
 def get_issue_cycle(inst):
     for s in state_list:
@@ -120,7 +126,7 @@ def IF_stage():
 
     inst = ''
 
-    if proceed and IF_Proceed:
+    if proceed and IF_Proceed and not STOPPING:
         completion_cycle = 0
         if IF_Cache_Proceed:
             # TODO record ICache miss to stall DCache
@@ -141,14 +147,16 @@ def IF_stage():
             IF_Cache_Proceed = True
             IF_completion.pop(clock)
 
-    if IF_Flush:
+    if IF_Flush and not STOPPING:
         if not STOPPING:
             IF_Flush = False
         update_state(to_string(inst), "IF", clock, True)
         if inst != '':
             IF.remove(inst)
         if STOPPING:
-            clean_up()
+            # TODO better means to stop
+            #clean_up()
+            pass
 
     if IF_New_EIP != -1:
         EIP = IF_New_EIP
@@ -185,7 +193,7 @@ def ID_stage():
                 IF_Flush = True
                 STOPPING = True
                 # TODO stop cleaner,
-                clean_up()
+                #clean_up()
                 return
 
 
@@ -231,12 +239,15 @@ def ID_stage():
                             return
                 else:
                     return
+
+            # Checking for Hazards
+
             if not execute.unitFree(inst, clock):
                 # TODO record hazard here? Waiting on a FU is a structural hazard right?
                 update_state(to_string(inst), "Struct", "Y")
                 IF_Proceed = False
                 continue
-            if inst[0] in Mem_Ops and clock >= MEM_BUSY:
+            if inst[0] in Mem_Ops and (clock >= MEM_BUSY or (clock >= ICACHE_BUSY[0] and clock <= ICACHE_BUSY[1])):
                 update_state(to_string(inst), "Struct", "Y")
                 IF_Proceed = False
                 continue
@@ -262,6 +273,7 @@ def ID_stage():
 def EX_stage():
     global ID_Ready
     global MEM_BUSY
+    global ICACHE_BUSY
 
     if proceed and (len(ID_Ready) != 0 or len(EX) != 0):
         
@@ -300,7 +312,7 @@ def EX_stage():
             for inst in inst_list:
                 if execute.needsMem(inst):
                     
-                    if clock >= MEM_BUSY:
+                    if clock >= MEM_BUSY-1 or (clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1]):
                         update_state(to_string(inst), "Struct", 'Y')
                         if not EX_completion.has_key(clock + 1 ):
                             EX_completion[clock + 1] = list()
@@ -309,15 +321,26 @@ def EX_stage():
                             EX_completion[clock + 1].append(inst)
                         continue
 
+                    # Checking for ICache miss for the IF stage, if so delay until its done
+                    if fetch.ICache_cache_miss(EIP+4) and clock > ICACHE_BUSY[1] and (EIP+4) <= last_instruction() and IF_Proceed:
+                        ICACHE_BUSY = (clock+1, clock + 2 * (I_CACHE_DELAY + MEMORY_DELAY))
+                        fetch.get_instruction(EIP+4, clock)
+                        # ICACHE miss, queue this for clock = ICACHE_BUSY to try again
+                        if not EX_completion.has_key(ICACHE_BUSY[1]):
+                            EX_completion[ICACHE_BUSY[1]] = list()
+                            EX_completion[ICACHE_BUSY[1]].append(inst)
+                        else:
+                            EX_completion[ICACHE_BUSY[1]].append(inst)
 
-                    result, completion_cycle = mem.access_memory(inst, clock)
-                    MEM_BUSY = clock + 1
+                    elif clock >= ICACHE_BUSY[1]:
+                        result, completion_cycle = mem.access_memory(inst, clock)
+                        MEM_BUSY = clock + 1
 
-                    if not MEM_completion.has_key(completion_cycle):
-                        MEM_completion[completion_cycle] = list()
-                        MEM_completion[completion_cycle].append(inst)
-                    else:
-                        MEM_completion[completion_cycle].append(inst)
+                        if not MEM_completion.has_key(completion_cycle):
+                            MEM_completion[completion_cycle] = list()
+                            MEM_completion[completion_cycle].append(inst)
+                        else:
+                            MEM_completion[completion_cycle].append(inst)
                 else:
                     # Non memory using instruction finishing EX
                     # TODO resolve WB contension before getting to WB/Recording leaving EX
@@ -430,9 +453,14 @@ IF_Flush = False
 IF_Cache_Proceed = True
 IF_New_EIP = -1
 
+I_CACHE_DELAY = int(config['I-Cache'][0])
+MEMORY_DELAY = int(config['Main memory'][0])
+    
+
 STOPPING = False
 
 MEM_BUSY = 10000000
+ICACHE_BUSY = (0,0)
 
 IF = []
 ID = []
@@ -468,7 +496,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 6:
+    if clock == 86:
         pdb.set_trace()
 
     WB_stage()

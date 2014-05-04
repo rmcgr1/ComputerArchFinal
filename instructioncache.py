@@ -53,6 +53,20 @@ class If:
 ###
 # Main methods
 ###
+    
+    def ICache_cache_miss(self, EIP):
+        index = self.get_index(EIP)
+        tag = self.get_tag(EIP)
+        offset = self.get_offset(EIP)
+
+        #check index to get the set, then check the tag
+                
+        if self.I_Cache[index][0] == tag:
+            # Hit
+            return False
+        else:
+            # Cache Miss
+            return True
 
 
     def get_instruction(self, EIP, clock):
