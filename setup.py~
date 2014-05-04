@@ -57,7 +57,7 @@ class Setup:
                 inst_dict[location] = l[1:]
             else:
                 inst_dict[location] = l
-            location = location + 1
+            location = location + 4
             
         return inst_dict, lable_dict
 
@@ -67,7 +67,7 @@ class Setup:
         f = open(filename)
         lines = f.readlines()
         
-        location = 100
+        location = int('0x100',16)
         for l in lines:
             l = l.strip()
             mem_dict[location] = l

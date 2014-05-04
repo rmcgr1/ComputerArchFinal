@@ -8,6 +8,8 @@ The controller to kick of all stages of the MIPS processor
 '''
 
 import pdb
+import argparse
+import sys
 
 from setup import Setup
 from ex import Ex
@@ -21,10 +23,24 @@ from memorycache import Mem
 
 def setup():
     setup = Setup()
-    inst_list, label_list = setup.parse_instructions('inst.txt')
-    register = setup.parse_registers('reg.txt')
-    memory = setup.parse_memory('data.txt')
-    config = setup.parse_config('config.txt')
+
+    parser = argparse.ArgumentParser(description='Useage: simulator inst.txt data.txt reg.txt config.txt result.txt')
+
+    parser.add_argument('inst.txt')
+    parser.add_argument('data.txt')
+    parser.add_argument('reg.txt')
+    parser.add_argument('config.txt')
+    parser.add_argument('result.txt')
+    
+    args = parser.parse_args()
+    if len(vars(args)) != 5:
+        print "Useage: simulator inst.txt data.txt reg.txt config.txt result.txt"
+        sys.exit(0)
+
+    inst_list, label_list = setup.parse_instructions(vars(args)['inst.txt'])
+    register = setup.parse_registers(vars(args)['reg.txt'])
+    memory = setup.parse_memory(vars(args)['data.txt'])
+    config = setup.parse_config(vars(args)['config.txt'])
     priority = setup.return_priority(config)
 
     #print inst_list 
@@ -149,6 +165,11 @@ def ID_stage():
         tempID = list(ID)
         for inst in tempID:
 
+            # TODO: do a clean exit
+            if inst[0] == 'HLT':
+                update_state(to_string(inst), "ID", clock)
+                clean_up()
+
             if inst[0] == 'J':
                 update_state(to_string(inst), "ID", clock)
                 ID.remove(inst)
@@ -166,12 +187,15 @@ def ID_stage():
                 IF_Proceed = True
                 update_state(to_string(inst), "ID", clock)
                 ID.remove(inst)
+                pdb.set_trace()
                 if register[inst[1]] == register[inst[2]]:
                     for k in labels.keys():
                         if labels[k] == inst[3]:
                             IF_New_EIP = k 
                             IF_Flush = True
                             return
+                else:
+                    return
 
             elif inst[0] == 'BNE':
                 if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
@@ -187,6 +211,8 @@ def ID_stage():
                             IF_New_EIP = k 
                             IF_Flush = True
                             return
+                else:
+                    return
 
             if not execute.unitFree(inst, clock):
                 # TODO record hazard here? Waiting on a FU is a structural hazard right?
@@ -224,6 +250,7 @@ def EX_stage():
 
             EX.append(inst)
 
+
             completion_cycle = execute.start(inst, clock, register)
 
             if not EX_completion.has_key(completion_cycle):
@@ -236,6 +263,16 @@ def EX_stage():
                  
         # check EX_completion here too to do the status update
         # Need to account for multiple instructions finishing in this cycle
+        
+        if MEM_completion.has_key(clock):
+            MEM_BUSY = False
+            inst_list = MEM_completion[clock]
+            for inst in inst_list:
+                # TODO resolve WB contension before getting to WB/Recording leaving EX
+                update_state(to_string(inst), "EX", clock)
+                EX.remove(inst)
+                EX_Ready.append(inst)
+
 
         if EX_completion.has_key(clock):
             inst_list = EX_completion[clock]
@@ -266,15 +303,6 @@ def EX_stage():
                     update_state(to_string(inst), "EX", clock)
                     EX.remove(inst)
                     EX_Ready.append(inst)
-
-        if MEM_completion.has_key(clock):
-            MEM_BUSY = False
-            inst_list = MEM_completion[clock]
-            for inst in inst_list:
-                # TODO resolve WB contension before getting to WB/Recording leaving EX
-                update_state(to_string(inst), "EX", clock)
-                EX.remove(inst)
-                EX_Ready.append(inst)
 
 
 
@@ -338,6 +366,14 @@ def WB_stage():
             inst = EX_Ready.pop()
             update_state(to_string(inst), "WB", clock)
 
+
+def clean_up():
+
+    print "Seen HLT"
+    sys.exit(0)
+    
+
+
     
 ###
 # State Variables
@@ -388,7 +424,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 49:
+    if clock == 6:
         pdb.set_trace()
 
     WB_stage()

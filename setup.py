@@ -41,6 +41,8 @@ import pdb
 
 class Setup:
 
+    
+
     def parse_instructions(self, filename):
         
         inst_dict = {}
@@ -50,15 +52,36 @@ class Setup:
         lines = f.readlines()
 
         location = 0
+
         for l in lines:
-            l = l.strip().replace(',','').split()
-            if (l[0])[-1] == ':':
-                lable_dict[location] = l[0].replace(':','')
-                inst_dict[location] = l[1:]
+            if l.find(':') != -1:
+                str = l
+                str = str.split(':')
+                lable_dict[location] = str[0].replace(':','')
+                str = str[1].strip().split(' ', 1)
+                cmd = str[0]
+                str = str[1].strip().split(',')
+                tmp_str = str
+                str = []
+                for i in tmp_str:
+                    str.append(i.strip())
+                inst_dict[location] = [cmd] + str
+
             else:
-                inst_dict[location] = l
+                str = l.strip().split(' ', 1)
+                if len(str) == 1:
+                    inst_dict[location] = str
+                    location = location + 4
+                    continue
+                cmd = str[0]
+                str = str[1].split(',')
+                tmp_str = str
+                str = []
+                for i in tmp_str:
+                    str.append(i.strip())
+                inst_dict[location] = [cmd] + str
+
             location = location + 4
-            
         return inst_dict, lable_dict
 
     def parse_memory(self, filename):
@@ -70,7 +93,7 @@ class Setup:
         location = int('0x100',16)
         for l in lines:
             l = l.strip()
-            mem_dict[location] = l
+            mem_dict[location] = int(l,2)
             location = location + 4
 
         return mem_dict
@@ -84,7 +107,7 @@ class Setup:
         register = 0
         for l in lines:
             l = l.strip()
-            reg_dict['R' + str(register)] = l
+            reg_dict['R' + str(register)] = int(l,2)
             register = register + 1
 
         return reg_dict
@@ -97,7 +120,7 @@ class Setup:
         
         for l in lines:
             l = l.strip().split(':')
-            if len(l[1].split()) == 2:
+            if len(l[1].split(',')) == 2:
                 config_dict[l[0].strip()] = [l[1].split(',')[0].strip(), l[1].split(',')[1].strip()]
             else:
                 config_dict[l[0].strip()] = [l[1].strip()]

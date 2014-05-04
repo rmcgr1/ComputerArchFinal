@@ -67,14 +67,18 @@ class Mem:
             else:
                 add = instruction[2][:instruction[2].find('(')]
                 reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
-                address = int(add) + int(self.register[reg],2)
+                address = int(add) + self.register[reg]
                 result, hit = self.read_memory(address, clock)
-                if not hit:
+                result, hit2 = self.read_memory(address + 4, clock)
+                
+                if not hit and not hit2:
+                    completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
+                elif (not hit and hit2) or (hit and not hit2):
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
                 else:
-                    completion_cycle = clock + self.D_CACHE_DELAY
+                    # With hits, two cache delay cycles to read both words
+                    completion_cycle = clock + self.D_CACHE_DELAY * 2 
             
-            # Dont care about implementing result for FP regs
 
         if instruction[0] == 'L.W':
 
@@ -83,7 +87,7 @@ class Mem:
             else:
                 add = instruction[2][:instruction[2].find('(')]
                 reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
-                address = int(add) + int(self.register[reg],2)
+                address = int(add) + self.register[reg]
                 result, hit = self.read_memory(address, clock)
                 if not hit:
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY))

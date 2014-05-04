@@ -85,28 +85,29 @@ class Ex:
             pdb.set_trace()
         
         if inst[0] == 'DADD':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) + int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = register[inst[2]] + register[inst[3]]
 
         if inst[0] == 'DADDI':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) + int(inst[3])))[2:]
+            self.register[inst[1]] = register[inst[2]] + int(inst[3])
 
         if inst[0] == 'DSUB':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) - int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = register[inst[2]] - register[inst[3]]
 
         if inst[0] == 'DSUBI':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) - int(inst[3])))[2:]
+            pdb.set_trace()
+            self.register[inst[1]] = register[inst[2]] - int(inst[3])
 
         if inst[0] == 'AND':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) & int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = register[inst[2]] & register[inst[3]]
         
         if inst[0] == 'ANDI':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) & int(inst[3])))[2:]
+            self.register[inst[1]] = register[inst[2]] & int(inst[3])
 
         if inst[0] == 'OR':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) | int(register[inst[3]],2)))[2:]
+            self.register[inst[1]] = register[inst[2]] | register[inst[3]]
         
         if inst[0] == 'ORI':
-            self.register[inst[1]] = str(bin(int(register[inst[2]],2) | int(inst[3])))[2:]
+            self.register[inst[1]] = register[inst[2]] | int(inst[3])
 
 
     def unitFree(self, inst, clock):
