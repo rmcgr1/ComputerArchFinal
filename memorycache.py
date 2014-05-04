@@ -86,7 +86,7 @@ class Mem:
                     self.stats['DC_HITS'] = self.stats['DC_HITS'] + 2
                           
 
-        if instruction[0] == 'L.W':
+        if instruction[0] == 'LW':
 
             if instruction[2].find('(') == -1:
                 address = self.register[instruction[2]]
@@ -103,7 +103,7 @@ class Mem:
                     completion_cycle = clock + self.D_CACHE_DELAY
                     self.stats['DC_HITS'] = self.stats['DC_HITS'] + 2
 
-            self.register[inst[1]] = result
+            self.register[instruction[1]] = result
 
         return result, completion_cycle
 

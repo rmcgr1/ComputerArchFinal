@@ -79,7 +79,7 @@ def status():
     print "After Clock: " + str(clock)
     print "IF: {0}  //  ID: {1} ID_RDY: {2}  //  EX: {3} EX_RDY: {4}  //  WB: {5}".format(IF, ID, ID_Ready, EX, EX_Ready, WB)
     print ""
-    print "IF_Proceed: " + str(IF_Proceed)
+    print "IF_Proceed: " + str(IF_Proceed) + " MEM_BUSY: " + str(MEM_BUSY)
     print execute.status()
     print ""
     print "Instruction\t\tIF\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct"
@@ -139,6 +139,7 @@ def IF_stage():
             IF.append(inst)
             update_state(to_string(inst), "IF", clock)
             IF_Cache_Proceed = True
+            IF_completion.pop(clock)
 
     if IF_Flush:
         if not STOPPING:
@@ -146,6 +147,8 @@ def IF_stage():
         update_state(to_string(inst), "IF", clock, True)
         if inst != '':
             IF.remove(inst)
+        if STOPPING:
+            clean_up()
 
     if IF_New_EIP != -1:
         EIP = IF_New_EIP
@@ -159,7 +162,7 @@ def ID_stage():
     global IF_Flush
     global EIP
     global IF_New_EIP
-
+    global STOPPING
 
     if proceed and (len(IF) != 0 or len(ID) != 0):
         
@@ -168,7 +171,6 @@ def ID_stage():
         if len(IF) > 0:
             ID.append(IF.pop(0))
 
-        # TODO do jumps/branches first so we don't have to do parsing issues
         
         # Check for jumps or branches, and flush IF if taken
         
@@ -178,9 +180,12 @@ def ID_stage():
             # TODO: do a clean exit
             if inst[0] == 'HLT':
                 pdb.set_trace()
+                ID.remove(inst)
                 update_state(to_string(inst), "ID", clock)
                 IF_Flush = True
                 STOPPING = True
+                # TODO stop cleaner,
+                clean_up()
                 return
 
 
@@ -226,9 +231,12 @@ def ID_stage():
                             return
                 else:
                     return
-
             if not execute.unitFree(inst, clock):
                 # TODO record hazard here? Waiting on a FU is a structural hazard right?
+                update_state(to_string(inst), "Struct", "Y")
+                IF_Proceed = False
+                continue
+            if inst[0] in Mem_Ops and clock >= MEM_BUSY:
                 update_state(to_string(inst), "Struct", "Y")
                 IF_Proceed = False
                 continue
@@ -278,21 +286,21 @@ def EX_stage():
         # Need to account for multiple instructions finishing in this cycle
         
         if MEM_completion.has_key(clock):
-            MEM_BUSY = False
+            MEM_BUSY = 10000000
             inst_list = MEM_completion[clock]
             for inst in inst_list:
                 # TODO resolve WB contension before getting to WB/Recording leaving EX
                 update_state(to_string(inst), "EX", clock)
                 EX.remove(inst)
                 EX_Ready.append(inst)
-
+            MEM_completion.pop(clock)
 
         if EX_completion.has_key(clock):
             inst_list = EX_completion[clock]
             for inst in inst_list:
                 if execute.needsMem(inst):
                     
-                    if MEM_BUSY:
+                    if clock >= MEM_BUSY:
                         update_state(to_string(inst), "Struct", 'Y')
                         if not EX_completion.has_key(clock + 1 ):
                             EX_completion[clock + 1] = list()
@@ -303,7 +311,7 @@ def EX_stage():
 
 
                     result, completion_cycle = mem.access_memory(inst, clock)
-                    MEM_BUSY = True
+                    MEM_BUSY = clock + 1
 
                     if not MEM_completion.has_key(completion_cycle):
                         MEM_completion[completion_cycle] = list()
@@ -316,6 +324,7 @@ def EX_stage():
                     update_state(to_string(inst), "EX", clock)
                     EX.remove(inst)
                     EX_Ready.append(inst)
+            EX_completion.pop(clock)
 
 
 
@@ -423,7 +432,7 @@ IF_New_EIP = -1
 
 STOPPING = False
 
-MEM_BUSY = False
+MEM_BUSY = 10000000
 
 IF = []
 ID = []
@@ -472,8 +481,8 @@ while True:
 
     status()
 
-    if len(IF) == 0 and len(IF_completion) == 0 and len(ID) == 0 and len(ID_Ready) == 0 and len(EX) == 0 and len(EX_completion) == 0 and len(MEM_completion) == 0 and len(EX_Ready) == 0 and len(WB) == 0:
-        clean_up()
+#    if len(IF) == 0 and len(IF_completion) == 0 and len(ID) == 0 and len(ID_Ready) == 0 and len(EX) == 0 and len(EX_completion) == 0 and len(MEM_completion) == 0 and len(EX_Ready) == 0 and len(WB) == 0:
+#       clean_up()
 
 
 

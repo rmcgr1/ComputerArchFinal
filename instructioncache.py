@@ -93,7 +93,13 @@ class If:
                 print "ERROR: I cache fetch out of range"
                 pdb.set_trace()
             
+            if i > self.last_instruction():
+                return data
             data.append(self.instruction[i])
             
         return data
                                 
+    def last_instruction(self):
+        temp = self.instruction.keys()
+        temp.sort()
+        return temp[-1]

@@ -59,6 +59,10 @@ class Setup:
                 str = str.split(':')
                 lable_dict[location] = str[0].replace(':','')
                 str = str[1].strip().split(' ', 1)
+                if len(str) == 1:
+                    inst_dict[location] = str
+                    location = location + 4
+                    continue
                 cmd = str[0]
                 str = str[1].strip().split(',')
                 tmp_str = str
