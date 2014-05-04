@@ -94,7 +94,6 @@ class Ex:
             self.register[inst[1]] = register[inst[2]] - register[inst[3]]
 
         if inst[0] == 'DSUBI':
-            pdb.set_trace()
             self.register[inst[1]] = register[inst[2]] - int(inst[3])
 
         if inst[0] == 'AND':

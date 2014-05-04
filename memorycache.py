@@ -18,11 +18,12 @@ class Mem:
     LRU = {'0': 0, '1' : 0}
 
 
-    def __init__(self, config, memory, register):    
+    def __init__(self, config, memory, register, stats):    
         self.D_CACHE_DELAY = int(config['D-Cache'][0])
         self.MEMORY_DELAY = int(config['Main memory'][0])
         self.memory = memory
         self.register = register
+        self.stats = stats
 
 ###
 # Helper Functions
@@ -69,16 +70,21 @@ class Mem:
                 reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
                 address = int(add) + self.register[reg]
                 result, hit = self.read_memory(address, clock)
+                self.stats['DC_REQ'] = self.stats['DC_REQ'] + 1
                 result, hit2 = self.read_memory(address + 4, clock)
-                
+                self.stats['DC_REQ'] = self.stats['DC_REQ'] + 1
+
                 if not hit and not hit2:
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
+
                 elif (not hit and hit2) or (hit and not hit2):
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY)) + 1
+                    self.stats['DC_HITS'] = self.stats['DC_HITS'] + 1
                 else:
                     # With hits, two cache delay cycles to read both words
-                    completion_cycle = clock + self.D_CACHE_DELAY * 2 
-            
+                    completion_cycle = clock + self.D_CACHE_DELAY * 2
+                    self.stats['DC_HITS'] = self.stats['DC_HITS'] + 2
+                          
 
         if instruction[0] == 'L.W':
 
@@ -89,10 +95,13 @@ class Mem:
                 reg = instruction[2][instruction[2].find('(')+1:instruction[2].find(')')]
                 address = int(add) + self.register[reg]
                 result, hit = self.read_memory(address, clock)
+                self.stats['DC_REQ'] = self.stats['DC_REQ'] + 1
+
                 if not hit:
                     completion_cycle = clock + (2 * (self.D_CACHE_DELAY + self.MEMORY_DELAY))
                 else:
                     completion_cycle = clock + self.D_CACHE_DELAY
+                    self.stats['DC_HITS'] = self.stats['DC_HITS'] + 2
 
             self.register[inst[1]] = result
 

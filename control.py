@@ -51,11 +51,19 @@ def setup():
 
     return inst_list, label_list, register, memory, config, priority
 
-def update_state(ins, stage, val):
-    if not state.has_key(ins):
-        state[ins] = {'IF':'', 'ID':'', 'EX':'', 'WB':'', 'RAW':'','WAR':'','WAW':'','Struct':''}
-        state_list.append({ins :state[ins]})
-    state[ins][stage] = val
+def update_state(inst, stage, val, flush=False):
+    if not state.has_key(inst):
+        state[inst] = {'IF':'', 'ID':'', 'EX':'', 'WB':'', 'RAW':'','WAR':'','WAW':'','Struct':''}
+        state_list.append({inst :state[inst]})
+    state[inst][stage] = val
+
+    if not result.has_key(inst):
+        result[inst] = {'IF':' ', 'ID':' ', 'EX':' ', 'WB':' ', 'RAW':'N','WAR':'N','WAW':'N','Struct':'N'}
+    result[inst][stage] = val
+
+    # TODO get labels, branches, and HLTs
+    if stage == 'WB' or (inst.split()[0] in Branch_Ops and stage == 'ID') or (inst.split()[0] == 'HLT' and stage == 'ID') or flush:
+        result_list.append("{0}\t\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\t{7}\t{8}".format(inst, result[inst]['IF'], result[inst]['ID'], result[inst]['EX'], result[inst]['WB'], result[inst]['RAW'], result[inst]['WAR'], result[inst]['WAW'], result[inst]['Struct']))
 
 
 def to_string(ins):
@@ -133,7 +141,9 @@ def IF_stage():
             IF_Cache_Proceed = True
 
     if IF_Flush:
-        IF_Flush = False
+        if not STOPPING:
+            IF_Flush = False
+        update_state(to_string(inst), "IF", clock, True)
         if inst != '':
             IF.remove(inst)
 
@@ -167,8 +177,12 @@ def ID_stage():
 
             # TODO: do a clean exit
             if inst[0] == 'HLT':
+                pdb.set_trace()
                 update_state(to_string(inst), "ID", clock)
-                clean_up()
+                IF_Flush = True
+                STOPPING = True
+                return
+
 
             if inst[0] == 'J':
                 update_state(to_string(inst), "ID", clock)
@@ -187,7 +201,6 @@ def ID_stage():
                 IF_Proceed = True
                 update_state(to_string(inst), "ID", clock)
                 ID.remove(inst)
-                pdb.set_trace()
                 if register[inst[1]] == register[inst[2]]:
                     for k in labels.keys():
                         if labels[k] == inst[3]:
@@ -369,7 +382,23 @@ def WB_stage():
 
 def clean_up():
 
-    print "Seen HLT"
+    print ""
+    print ""
+    print ""
+    for r in result_list:
+        if r.startswith('HLT'):
+            print 'HLT\t' + r[3:]
+        else:
+            print r
+    print ''
+    print "Total number of access requests for instruction cache: " + str(stats['IC_REQ'])
+    print ''
+    print "Number of instruction cache hits: " + str(stats['IC_HITS'])
+    print ''
+    print "Total number of access requests for data cache: " + str(stats['DC_REQ'])
+    print ''
+    print "Number of data cache hits: " + str(stats['DC_HITS'])
+
     sys.exit(0)
     
 
@@ -392,6 +421,8 @@ IF_Flush = False
 IF_Cache_Proceed = True
 IF_New_EIP = -1
 
+STOPPING = False
+
 MEM_BUSY = False
 
 IF = []
@@ -401,11 +432,15 @@ EX = []
 EX_Ready = []
 WB = []
 
+result = {}
+result_list = []
+result_list.append('instruction\t\tIF\tID\tEX\tWB\tRAW\tWAR\tWAW\tStruct')
+stats = {'IC_REQ' : 0, 'IC_HITS' : 0, 'DC_REQ' : 0, 'DC_HITS' : 0}
 
 execute = Ex(config, register)
 decode = Id()
-fetch = If(config, instruction)
-mem = Mem(config, memory, register)
+fetch = If(config, instruction, stats)
+mem = Mem(config, memory, register, stats)
 
 EX_completion = {}
 IF_completion = {}
@@ -436,6 +471,9 @@ while True:
     IF_stage()
 
     status()
+
+    if len(IF) == 0 and len(IF_completion) == 0 and len(ID) == 0 and len(ID_Ready) == 0 and len(EX) == 0 and len(EX_completion) == 0 and len(MEM_completion) == 0 and len(EX_Ready) == 0 and len(WB) == 0:
+        clean_up()
 
 
 

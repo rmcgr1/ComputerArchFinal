@@ -15,10 +15,11 @@ class If:
     instruction = {}
     I_Cache = {'00': ('', ['','','','','']), '01': ('', ['','','','','']), '10': ('', ['','','','','']), '11': ('',['','','','',''])}
 
-    def __init__(self, config, instruction):    
+    def __init__(self, config, instruction, stats):    
         self.I_CACHE_DELAY = int(config['I-Cache'][0])
         self.MEMORY_DELAY = int(config['Main memory'][0])
         self.instruction = instruction
+        self.stats = stats
 
 ###
 # Helper Functions
@@ -61,9 +62,13 @@ class If:
         offset = self.get_offset(EIP)
 
         #check index to get the set, then check the tag
+        self.stats['IC_REQ'] = self.stats['IC_REQ'] + 1
+        
         if self.I_Cache[index][0] == tag:
             # Hit
+            self.stats['IC_HITS'] = self.stats['IC_HITS'] + 1
             return self.I_Cache[index][1][int('0b' + offset,2)], clock
+        
 
         else:
             # Cache Miss
