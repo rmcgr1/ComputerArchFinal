@@ -122,17 +122,17 @@ class Ex:
         if op in self.Branch_Ops:
             return True
         if op == "ADD.D" or op == "SUB.D":
-            if self.FP_ADD_BUSY < clock:
+            if self.FP_ADD_BUSY <= clock:
                 return True
             else:
                 return False
         if op == "MUL.D":
-            if self.FP_MULT_BUSY < clock:
+            if self.FP_MULT_BUSY <= clock:
                 return True
             else:
                 return False
         if op == "DIV.D":
-            if self.FP_DIV_BUSY < clock:
+            if self.FP_DIV_BUSY <= clock:
                 return True
             else:
                 return False

@@ -123,6 +123,7 @@ def IF_stage():
     global IF_Flush
     global IF_Cache_Proceed
     global IF_New_EIP
+    global IF_Proceed
 
     inst = ''
 
@@ -171,6 +172,7 @@ def ID_stage():
     global EIP
     global IF_New_EIP
     global STOPPING
+    global ID_Proceed
 
     if proceed and (len(IF) != 0 or len(ID) != 0):
         
@@ -207,7 +209,7 @@ def ID_stage():
                         return
 
             elif inst[0] == 'BEQ':
-                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
+                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready + WB_Ready):
                     update_state(to_string(inst), "RAW", "Y")
                     IF_Proceed = False
                     continue
@@ -224,7 +226,7 @@ def ID_stage():
                     return
 
             elif inst[0] == 'BNE':
-                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready):
+                if decode.RAW_Hazard_Branch(inst, EX + EX_Ready + WB_Ready):
                     update_state(to_string(inst), "RAW", "Y")
                     IF_Proceed = False
                     continue
@@ -243,7 +245,6 @@ def ID_stage():
             # Checking for Hazards
 
             if not execute.unitFree(inst, clock):
-                # TODO record hazard here? Waiting on a FU is a structural hazard right?
                 update_state(to_string(inst), "Struct", "Y")
                 IF_Proceed = False
                 continue
@@ -251,12 +252,16 @@ def ID_stage():
                 update_state(to_string(inst), "Struct", "Y")
                 IF_Proceed = False
                 continue
-            if decode.RAW_Hazard(inst, EX + EX_Ready):
+            if inst[0] in Int_Arithmetic and (clock >= MEM_BUSY or (clock >= ICACHE_BUSY[0] and clock <= ICACHE_BUSY[1])):
+                update_state(to_string(inst), "Struct", "Y")
+                IF_Proceed = False
+                continue
+            if decode.RAW_Hazard(inst, EX + EX_Ready + WB_Ready):
                 update_state(to_string(inst), "RAW", "Y")
                 IF_Proceed = False
                 continue
             # TODO do WAW here?
-            if decode.WAW_Hazard(inst, EX + EX_Ready):
+            if decode.WAW_Hazard(inst, EX + EX_Ready + WB_Ready):
                 update_state(to_string(inst), "WAW", "Y")
                 IF_Proceed = False
                 continue
@@ -274,15 +279,14 @@ def EX_stage():
     global ID_Ready
     global MEM_BUSY
     global ICACHE_BUSY
-
-    if proceed and (len(ID_Ready) != 0 or len(EX) != 0):
+    
+    if proceed and (len(ID_Ready) != 0 or len(EX) != 0 or len(EX_Ready) != 0):
         
 
         # can we have multiple instructions enter EX, sure!
         for inst in ID_Ready:
 
             EX.append(inst)
-
 
             completion_cycle = execute.start(inst, clock, register)
 
@@ -299,10 +303,12 @@ def EX_stage():
         
         if MEM_completion.has_key(clock):
             MEM_BUSY = 10000000
+
+
             inst_list = MEM_completion[clock]
             for inst in inst_list:
                 # TODO resolve WB contension before getting to WB/Recording leaving EX
-                update_state(to_string(inst), "EX", clock)
+                # update_state(to_string(inst), "EX", clock)
                 EX.remove(inst)
                 EX_Ready.append(inst)
             MEM_completion.pop(clock)
@@ -310,6 +316,16 @@ def EX_stage():
         if EX_completion.has_key(clock):
             inst_list = EX_completion[clock]
             for inst in inst_list:
+                if inst[0] in Int_Arithmetic and clock >= MEM_BUSY or (clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1]):
+                    update_state(to_string(inst), "Struct", 'Y')
+                    if not EX_completion.has_key(clock + 1 ):
+                        EX_completion[clock + 1] = list()
+                        EX_completion[clock + 1].append(inst)
+                    else:
+                        EX_completion[clock + 1].append(inst)
+                    continue
+
+                    
                 if execute.needsMem(inst):
                     
                     if clock >= MEM_BUSY-1 or (clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1]):
@@ -344,32 +360,14 @@ def EX_stage():
                 else:
                     # Non memory using instruction finishing EX
                     # TODO resolve WB contension before getting to WB/Recording leaving EX
-                    update_state(to_string(inst), "EX", clock)
+                    # update_state(to_string(inst), "EX", clock)
                     EX.remove(inst)
                     EX_Ready.append(inst)
             EX_completion.pop(clock)
-
-
-
-
-def WB_stage():
-    if proceed and len(EX_Ready) != 0:
-        global WB
-
-        WB = []
-
-        # TODO do WAR Hazard here?
-        #if decode.WAR_Hazard(inst, EX + EX_Ready):
-        #    update_state(to_string(inst), "WAR", "Y")
-
-        
-        # Contention for single WB port
-        # TODO Priority given to not pipelined FU that takes most cycles, if tie, earielst issued
-        # TODO Record Structural Hazard
-        # TODO keep FU busy for stalled instruction
-        # TODO what about MEM Ops?
-        
+    
+        # Resolve contention for WB port
         if len(EX_Ready) > 1:
+
             order = []
 
             # Go through each priority, and if only one hit for each priority issue and move on, else break tie by figuring out issue cycle
@@ -384,9 +382,9 @@ def WB_stage():
                 if len(order) == 1:
                     # Issue
                     inst = order[0]
-                    WB.append(inst)
+                    WB_Ready.append(inst)
                     EX_Ready.remove(inst)
-                    update_state(to_string(inst), "WB", clock)
+                    update_state(to_string(inst), "EX", clock)
 
                     # Give all other instructions Structural Hazards
                     for i in EX_Ready:
@@ -396,21 +394,45 @@ def WB_stage():
 
                 elif len(order) > 1:
                     # TODO test this
-
                     order.sort(key=lambda x: get_issue_cycle(x), reverse=True)
                     EX_Ready.remove(order[0])
-                    update_state(to_string(order[0]), "WB", clock)
+                    update_state(to_string(order[0]), "EX", clock)
+                    WB_Ready.append(order[0])
                     
                     # Give all other instructions Structural Hazards
                     for i in EX_Ready:
-                        if i != inst:
+                        if i != order[0]:
                             update_state(to_string(i), "Struct", 'Y')
                     break
 
         elif len(EX_Ready) == 1:
             inst = EX_Ready.pop()
-            update_state(to_string(inst), "WB", clock)
+            update_state(to_string(inst), "EX", clock)
+            WB_Ready.append(inst)
+            
 
+
+def WB_stage():
+    global WB
+    global WB_Ready
+
+    if proceed and len(WB_Ready) != 0:
+
+        WB = []
+
+        # TODO do WAR Hazard here?
+        #if decode.WAR_Hazard(inst, EX + EX_Ready):
+        #    update_state(to_string(inst), "WAR", "Y")
+
+        
+        # Contention for single WB port
+        # TODO Priority given to not pipelined FU that takes most cycles, if tie, earielst issued
+        # TODO Record Structural Hazard
+        # TODO keep FU busy for stalled instruction
+        # TODO what about MEM Ops?
+        
+        inst = WB_Ready.pop()
+        update_state(to_string(inst), "WB", clock)
 
 def clean_up():
 
@@ -453,6 +475,8 @@ IF_Flush = False
 IF_Cache_Proceed = True
 IF_New_EIP = -1
 
+ID_Proceed = True
+
 I_CACHE_DELAY = int(config['I-Cache'][0])
 MEMORY_DELAY = int(config['Main memory'][0])
     
@@ -468,6 +492,7 @@ ID_Ready = []
 EX = []
 EX_Ready = []
 WB = []
+WB_Ready = []
 
 result = {}
 result_list = []
@@ -485,6 +510,7 @@ MEM_completion = {}
 state = {}
 state_list = []
 
+set_break = 1000
 
 Int_Arithmetic = ['DADD', 'DADDI', 'DSUB', 'DSUBI', 'AND', 'ANDI', 'OR', 'ORI']
 Mem_Ops = ['LW', 'SW', 'L.D', 'S.D']
@@ -496,7 +522,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 86:
+    if clock == 32 or clock == set_break:
         pdb.set_trace()
 
     WB_stage()
