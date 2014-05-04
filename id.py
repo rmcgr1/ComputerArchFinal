@@ -44,7 +44,10 @@ class Id:
     def getSourceRegisters(self, inst):
         l = []
 
-        if len(inst) == 3:
+        if inst[0] == 'S.D' or inst[0] == 'SW':
+            l.append(inst[1])
+
+        elif len(inst) == 3:
             sec = inst[-1].strip(',()')
             if sec.find('R') != -1:
                 l.append(sec[sec.find('R'):])
@@ -52,7 +55,7 @@ class Id:
                 l.append(sec[sec.find('F'):])
 
             
-        if len(inst) == 4:
+        elif len(inst) == 4:
             l.append(inst[-2].strip(',()'))
             sec = inst[-1].strip(',()')
             if sec.find('R') != -1:

@@ -130,7 +130,10 @@ def IF_stage():
     if proceed and IF_Proceed and not STOPPING:
         completion_cycle = 0
         if IF_Cache_Proceed:
-            # TODO record ICache miss to stall DCache
+
+            if clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1]:
+                return
+
             inst, completion_cycle = fetch.get_instruction(EIP, clock)
 
             #if not IF_completion.has_key(completion_cycle):
@@ -316,7 +319,7 @@ def EX_stage():
         if EX_completion.has_key(clock):
             inst_list = EX_completion[clock]
             for inst in inst_list:
-                if inst[0] in Int_Arithmetic and clock >= MEM_BUSY or (clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1]):
+                if inst[0] in Int_Arithmetic and (clock >= MEM_BUSY or (clock >= ICACHE_BUSY[0] and clock < ICACHE_BUSY[1])):
                     update_state(to_string(inst), "Struct", 'Y')
                     if not EX_completion.has_key(clock + 1 ):
                         EX_completion[clock + 1] = list()
@@ -339,8 +342,10 @@ def EX_stage():
 
                     # Checking for ICache miss for the IF stage, if so delay until its done
                     if fetch.ICache_cache_miss(EIP+4) and clock > ICACHE_BUSY[1] and (EIP+4) <= last_instruction() and IF_Proceed:
+                        pdb.set_trace()
                         ICACHE_BUSY = (clock+1, clock + 2 * (I_CACHE_DELAY + MEMORY_DELAY))
                         fetch.get_instruction(EIP+4, clock)
+
                         # ICACHE miss, queue this for clock = ICACHE_BUSY to try again
                         if not EX_completion.has_key(ICACHE_BUSY[1]):
                             EX_completion[ICACHE_BUSY[1]] = list()
@@ -484,7 +489,7 @@ MEMORY_DELAY = int(config['Main memory'][0])
 STOPPING = False
 
 MEM_BUSY = 10000000
-ICACHE_BUSY = (0,0)
+ICACHE_BUSY = (-1,-1)
 
 IF = []
 ID = []
@@ -522,7 +527,7 @@ pdb.set_trace()
 while True:
     clock = clock + 1
 
-    if clock == 32 or clock == set_break:
+    if clock == 15 or clock == set_break:
         pdb.set_trace()
 
     WB_stage()
