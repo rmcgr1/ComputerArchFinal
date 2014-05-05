@@ -4,7 +4,7 @@
 Ryan McGrath
 CMSC 611 Final Project
 
-control.py
+simulator.py
 
 The controller to kick of all stages of the MIPS processor
 
